@@ -39,7 +39,8 @@
       <h1 style="font-size:26px;margin:0 0 6px">Create the admin account</h1>
       <p class="sub">This appears only once. Choose the ID and password you will use to log in. You can add staff users after this.</p>
       <form id="setup-form" autocomplete="off">
-        <div class="field"><label for="s-key">Setup key</label><input id="s-key" type="password" required autocomplete="off"><div class="hint">The current admin password (from ADMIN-PASSWORD.txt, or the one you set in Vercel).</div></div>
+        <div class="field"><label for="s-key">Setup key</label><input id="s-key" type="password" required autocomplete="off"><div class="hint">Copy it from the "Setup key:" line in ADMIN-PASSWORD.txt and paste it here.</div>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="s-show" style="width:auto"> Show what I typed</label></div>
         <div class="field"><label for="s-name">Your name</label><input id="s-name" required maxlength="60" autocomplete="name"></div>
         <div class="field"><label for="s-user">Admin ID</label><input id="s-user" required maxlength="30" autocomplete="username" placeholder="e.g. manager"><div class="hint">3 to 30 letters or numbers. You type this to log in.</div></div>
         <div class="field"><label for="s-pw">Password</label><input id="s-pw" type="password" required minlength="8" autocomplete="new-password"><div class="hint">At least 8 characters.</div></div>
@@ -113,11 +114,12 @@
       .catch(function(){ only("login"); });
   }
 
+  $("s-show").addEventListener("change", function(){ $("s-key").type = this.checked ? "text" : "password"; });
   $("setup-form").addEventListener("submit", function(e){
     e.preventDefault();
     var err = $("setup-err"); err.textContent = "";
     if ($("s-pw").value !== $("s-pw2").value) { err.textContent = "The two passwords are not the same."; return; }
-    api("setup", { setupKey: $("s-key").value, name: $("s-name").value, username: $("s-user").value, password: $("s-pw").value })
+    api("setup", { setupKey: $("s-key").value.trim(), name: $("s-name").value, username: $("s-user").value, password: $("s-pw").value })
       .then(function(j){ setToken(j.token); start(j.user); flash("Admin account created. Welcome, " + j.user.name + "!"); })
       .catch(function(ex){ err.textContent = ex.message; });
   });
