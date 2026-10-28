@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>My account · Tanzania Car Dealers</title>
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+.status{border-radius:16px;padding:18px 20px;margin-bottom:20px;border:1px solid var(--line);background:var(--card)}
+.status b{font-size:18px;display:block;margin-bottom:4px}
+.status.verified{border-color:var(--green);background:var(--soft)}
+.status.review{border-color:#f1d27a;background:color-mix(in srgb,#fcd116 14%,var(--card))}
+.status.rejected{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 9%,var(--card))}
+.doc{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.doc:last-child{border-bottom:0}
+.doc .state{font-size:13.5px;color:var(--muted)}
+.doc .state.ok{color:var(--green-dark)}
+.req{font-size:11.5px;font-weight:700;color:var(--danger);margin-left:6px}
+.opt{font-size:11.5px;font-weight:600;color:var(--muted);margin-left:6px}
+.upload{position:relative;overflow:hidden}
+.upload input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.myad{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+.pill.approved{background:var(--soft);color:var(--green-dark);border-color:var(--green)}
+.pill.pending{background:#fff4d6;color:#7a5800;border-color:#f1d27a}
+.stack{display:grid;gap:18px}
+</style>
+</head>
+<body>
+<section>
+  <div class="wrap" style="max-width:860px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+      <h1 style="font-size:30px;margin:0" id="hello">My account</h1>
+      <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" id="pw-btn">Change password</button><button class="btn btn-ghost btn-sm" id="logout">Log out</button></div>
+    </div>
+    <div id="flash"></div>
+    <div id="root"><p class="empty">Loading…</p></div>
+  </div>
+</section>
+<script src="/config.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("");
+  var esc = TCD.esc, root = document.getElementById("root");
+  var ID_TYPES = ["NIDA (National ID)", "Passport", "Driving licence", "Voter ID"];
+  var state = { user: null, docKinds: [], ads: [] };
+
+  if (!TCD.session.get().token || TCD.session.get().kind !== "m") { location.href = "/login?next=/account"; return; }
+  function call(action, data){
+    return TCD.api("account", action, data).catch(function(ex){
+      if (ex.status === 401) { TCD.session.clear(); location.href = "/login?next=/account"; }
+      throw ex;
+    });
+  }
+  function flash(text, kind){
+    var f = document.getElementById("flash");
+    f.innerHTML = text ? '<div class="notice ' + (kind || "ok") + '">' + esc(text) + '</div>' : "";
+    if (text) { f.scrollIntoView({ behavior: "smooth", block: "nearest" }); setTimeout(function(){ if (f.textContent === text) f.innerHTML = ""; }, 5000); }
+  }
+  document.getElementById("logout").addEventListener("click", function(){ TCD.session.clear(); location.href = "/"; });
+
+  function statusBox(u){
+    var phone = "+" + u.phone;
+    if (u.status === "verified") return '<div class="status verified"><b>✓ Your account is verified</b>You can now post cars for sale. Each car is checked by our team before it goes live.' +
+      '<div style="margin-top:12px"><a class="btn btn-main" href="/sell">Post a car</a>' + (u.dealerId ? ' <a class="btn btn-ghost" href="/dealer?id=' + esc(u.dealerId) + '">My dealer page</a>' : "") + '</div></div>';
+    if (u.status === "review") return '<div class="status review"><b>Waiting for verification</b>Thank you! Our team is checking your documents and will call or WhatsApp you on <b>' + esc(phone) + '</b> to confirm. This usually takes 1 working day.</div>';
+    if (u.status === "rejected") return '<div class="status rejected"><b>We could not verify your account yet</b>' + esc(u.reviewMessage || "Please check your details and documents.") + '<br>Fix the problem below, then press <b>Send for verification</b> again.</div>';
+    return '<div class="status"><b>Finish your account to start selling</b>Fill in your details and upload your documents below, then press <b>Send for verification</b>. Our team will check them and call you on <b>' + esc(phone) + '</b>.</div>';
+  }
+
+  function detailsForm(u){
+    var locked = u.status === "verified" || u.status === "review";
+    var dis = u.status === "verified" ? " disabled" : "";
+    var b = u.business || {};
+    return '<form id="details" class="panel"><h2 style="font-size:20px">1. Your details</h2>' +
+      (u.status === "verified" ? '<p class="hint">Your details are verified. To change them, message us on WhatsApp.</p>' : locked ? '<p class="hint">You can still correct details while we review them.</p>' : "") +
+      '<div class="form-grid">' +
+      (u.type === "dealer" ?
+        '<div class="full"><label>Business name *</label><input name="businessName" maxlength="100" value="' + esc(b.name) + '"' + dis + '></div>' +
+        '<div><label>TIN number *</label><input name="tin" maxlength="30" value="' + esc(b.tin) + '"' + dis + '></div>' +
+        '<div><label>Business licence number *</label><input name="licenceNo" maxlength="40" value="' + esc(b.licenceNo) + '"' + dis + '></div>' +
+        '<div><label>BRELA registration number</label><input name="brelaNo" maxlength="40" value="' + esc(b.brelaNo) + '"' + dis + '></div>' +
+        '<div><label>Business address *</label><input name="address" maxlength="160" value="' + esc(b.address) + '"' + dis + '></div>' : "") +
+      '<div><label>' + (u.type === "dealer" ? "Owner / manager full name *" : "Full name (as on ID) *") + '</label><input name="fullName" maxlength="80" value="' + esc(u.fullName) + '"' + dis + '></div>' +
+      '<div><label>City *</label><input name="city" maxlength="40" list="cities" value="' + esc(u.city) + '"' + dis + '></div>' +
+      '<div><label>ID type *</label><select name="idType"' + dis + '><option value="">Choose…</option>' + ID_TYPES.map(function(t){ return '<option' + (u.idType === t ? " selected" : "") + '>' + t + '</option>'; }).join("") + '</select></div>' +
+      '<div><label>ID number *</label><input name="idNumber" maxlength="40" value="' + esc(u.idNumber) + '"' + dis + '></div>' +
+      '<div><label>Email</label><input name="email" type="email" maxlength="120" value="' + esc(u.email) + '"' + dis + '></div>' +
+      '<div><label>Mobile number</label><input value="+' + esc(u.phone) + '" disabled><div class="hint">This is your login. Contact us to change it.</div></div>' +
+      (u.status === "verified" ? "" : '<div class="full"><button class="btn btn-main">Save details</button></div>') +
+      '</div></form>' +
+      '<datalist id="cities"><option>Dar es Salaam</option><option>Arusha</option><option>Mwanza</option><option>Dodoma</option><option>Mbeya</option><option>Morogoro</option><option>Tanga</option><option>Moshi</option><option>Zanzibar</option></datalist>';
+  }
+
+  function docsPanel(u){
+    var canEdit = u.status !== "verified";
+    return '<div class="panel"><h2 style="font-size:20px">2. Documents</h2><p class="hint">Clear photos in good light, all four corners visible. Photos or PDF, max 3 MB each. Your documents are encrypted and only our verification team can see them.</p>' +
+      state.docKinds.map(function(k){
+        var d = (u.docs || []).filter(function(x){ return x.kind === k.kind; })[0];
+        return '<div class="doc"><div><b>' + esc(k.label) + '</b>' + (k.required ? '<span class="req">REQUIRED</span>' : '<span class="opt">optional</span>') +
+          '<div class="state' + (d ? " ok" : "") + '">' + (d ? "✓ Uploaded " + new Date(d.uploadedAt).toLocaleDateString() + " · " + esc(d.name) : "Not uploaded yet") + '</div></div>' +
+          (canEdit ? '<span class="btn btn-ghost btn-sm upload">' + (d ? "Replace" : "Upload") + '<input type="file" accept="image/*,application/pdf" data-kind="' + k.kind + '"></span>' : "") + '</div>';
+      }).join("") + '</div>';
+  }
+
+  function submitPanel(u){
+    if (u.status === "verified" || u.status === "review") return "";
+    var gaps = u.missing || [];
+    return '<div class="panel"><h2 style="font-size:20px">3. Send for verification</h2>' +
+      (gaps.length ? '<p class="hint">Still needed: <b>' + gaps.map(esc).join(", ") + '</b></p>' : '<p class="hint">Everything is ready. Our team will check your documents and call you.</p>') +
+      '<button class="btn btn-main" id="submit"' + (gaps.length ? " disabled" : "") + '>Send for verification</button></div>';
+  }
+
+  function adsPanel(){
+    if (state.user.status !== "verified" && !state.ads.length) return "";
+    return '<div class="panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="font-size:20px;margin:0">My cars</h2>' +
+      (state.user.status === "verified" ? '<a class="btn btn-main btn-sm" href="/sell">+ Post a car</a>' : "") + '</div>' +
+      (state.ads.length ? state.ads.map(function(a){
+        var label = { pending: "Waiting for approval", approved: "Live", sold: "Sold", rejected: "Not approved" }[a.status] || a.status;
+        return '<div class="myad"><div><b>' + esc(TCD.title(a)) + '</b><div class="hint">' + TCD.money(a.price) + ' · posted ' + new Date(a.createdAt).toLocaleDateString() + '</div></div>' +
+          '<div><span class="pill ' + a.status + '">' + label + '</span>' + (a.status === "approved" ? ' <a class="btn btn-ghost btn-sm" href="/car?id=' + a.id + '">View</a>' : "") + '</div></div>';
+      }).join("") : '<p class="empty" style="padding:10px 0">No cars yet.</p>') + '</div>';
+  }
+
+  function pwPanel(){
+    return '<form id="pw" class="panel" hidden><h2 style="font-size:20px">Change password</h2><div class="form-grid">' +
+      '<div class="full"><label>Current password</label><input name="cur" type="password" required autocomplete="current-password"></div>' +
+      '<div><label>New password</label><input name="n1" type="password" minlength="8" required autocomplete="new-password"></div>' +
+      '<div><label>Repeat new password</label><input name="n2" type="password" minlength="8" required autocomplete="new-password"></div>' +
+      '<div class="full"><button class="btn btn-main">Save password</button></div></div></form>';
+  }
+
+  function render(){
+    var u = state.user;
+    document.getElementById("hello").textContent = "Hello, " + (u.type === "dealer" && u.business && u.business.name ? u.business.name : u.fullName.split(" ")[0]);
+    root.innerHTML = statusBox(u) + '<div class="stack">' + pwPanel() + adsPanel() + detailsForm(u) + docsPanel(u) + submitPanel(u) + '</div>';
+  }
+
+  function load(){
+    return Promise.all([call("me"), call("myAds")]).then(function(r){
+      state.user = r[0].user; state.docKinds = r[0].docKinds; state.ads = r[1].ads; render();
+      if (/new=1/.test(location.search)) { flash("Account created! Now add your details and documents."); history.replaceState(null, "", "/account"); }
+    }).catch(function(ex){ root.innerHTML = '<p class="notice err">' + esc(ex.message) + '</p>'; });
+  }
+
+  document.getElementById("pw-btn").addEventListener("click", function(){ var p = document.getElementById("pw"); if (p) { p.hidden = !p.hidden; p.scrollIntoView({ behavior: "smooth" }); } });
+
+  root.addEventListener("submit", function(e){
+    e.preventDefault();
+    var f = e.target.elements;
+    if (e.target.id === "details") {
+      var data = {};
+      ["businessName", "tin", "licenceNo", "brelaNo", "address", "fullName", "city", "idType", "idNumber", "email"].forEach(function(k){ if (f[k]) data[k] = f[k].value; });
+      call("updateProfile", data).then(function(j){ state.user = j.user; render(); flash("Details saved."); }).catch(function(ex){ flash(ex.message, "err"); });
+    }
+    if (e.target.id === "pw") {
+      if (f.n1.value !== f.n2.value) return flash("The two new passwords are not the same.", "err");
+      call("changePassword", { currentPassword: f.cur.value, newPassword: f.n1.value }).then(function(){ render(); flash("Password changed."); }).catch(function(ex){ flash(ex.message, "err"); });
+    }
+  });
+
+  // Uploads go one at a time so two uploads can't overwrite each other's changes.
+  var queue = Promise.resolve();
+  root.addEventListener("change", function(e){
+    var input = e.target;
+    if (!input.dataset || !input.dataset.kind || !input.files[0]) return;
+    var file = input.files[0], kind = input.dataset.kind;
+    var holder = input.parentNode; holder.firstChild.textContent = "Uploading…";
+    queue = queue.then(function(){
+      var read = file.type === "application/pdf"
+        ? new Promise(function(res, rej){
+            if (file.size > 3 * 1024 * 1024) return rej(new Error("That PDF is larger than 3 MB. Please take a photo instead."));
+            var r = new FileReader(); r.onload = function(){ res(r.result); }; r.onerror = function(){ rej(new Error("Could not read the file.")); }; r.readAsDataURL(file);
+          })
+        : TCD.shrinkImage(file, 1800, 0.85);
+      return read.then(function(data){ return call("uploadDoc", { kind: kind, data: data, name: file.name }); })
+        .then(function(j){ state.user = j.user; render(); flash("Document uploaded."); })
+        .catch(function(ex){ render(); flash(ex.message, "err"); });
+    });
+  });
+
+  root.addEventListener("click", function(e){
+    if (e.target.id !== "submit") return;
+    e.target.disabled = true;
+    call("submitForReview").then(function(j){ state.user = j.user; render(); flash("Sent! We will call you soon to confirm."); window.scrollTo({ top: 0, behavior: "smooth" }); })
+      .catch(function(ex){ e.target.disabled = false; flash(ex.message, "err"); });
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -50,18 +50,6 @@
       </form>
     </div>
 
-    <div id="login" class="panel auth" hidden>
-      <h1 style="font-size:26px;margin:0 0 6px">Admin login</h1>
-      <p class="sub">For Tanzania Car Dealers staff only.</p>
-      <form id="login-form">
-        <div class="field"><label for="l-user">ID</label><input id="l-user" required autocomplete="username" autocapitalize="none"></div>
-        <div class="field"><label for="l-pw">Password</label><input id="l-pw" type="password" required autocomplete="current-password"></div>
-        <div id="login-err" class="hint" style="color:var(--danger)"></div>
-        <button class="btn btn-main" style="width:100%;margin-top:10px">Log in</button>
-        <p class="hint" style="text-align:center;margin-top:12px">Forgot your password? Ask your admin to reset it.</p>
-      </form>
-    </div>
-
     <div id="app" hidden>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
         <div><h1 style="font-size:30px;margin:0">Admin</h1><div class="whoami" id="whoami"></div></div>
@@ -89,29 +77,30 @@
 (function(){
   TCD.chrome("");
   var esc = TCD.esc, $ = function(id){ return document.getElementById(id); };
-  var KEY = "tcd_admin_token", token = null;
-  try { token = localStorage.getItem(KEY); } catch (e) {}
-  var state = { tab: "pending", ads: [], dealers: [], users: [], editing: null, editingUser: null, me: null };
+  var state = { tab: "pending", ads: [], dealers: [], users: [], members: [], memberFilter: "review", openMember: null, editing: null, editingUser: null, me: null };
   function isAdmin(){ return state.me && state.me.role === "admin"; }
+  function canVerify(){ return state.me && (state.me.role === "admin" || state.me.role === "manager"); }
+  var ROLE_LABEL = { admin: "Admin", manager: "Manager", staff: "Staff" };
 
   function api(action, data){
-    return fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + (token || "") },
-      body: JSON.stringify(Object.assign({ action: action }, data || {})) })
-      .then(function(r){ return r.json().then(function(j){
-        if (r.status === 401 && ["login", "setup", "changePassword"].indexOf(action) === -1) { showLogin(); throw new Error("Please log in again."); }
-        if (!r.ok) throw new Error(j.error || "Something went wrong"); return j; }); });
+    return TCD.api("admin", action, data).catch(function(ex){
+      if (ex.status === 401 && ["setup", "changePassword"].indexOf(action) === -1) { showLogin(); throw new Error("Please log in again."); }
+      throw ex;
+    });
   }
   function flash(text, kind){
     var f = $("flash");
     f.innerHTML = text ? '<div class="notice ' + (kind || "ok") + '">' + esc(text) + '</div>' : "";
     if (text) setTimeout(function(){ if (f.textContent === text) f.innerHTML = ""; }, 3500);
   }
-  function setToken(t){ token = t; try { t ? localStorage.setItem(KEY, t) : localStorage.removeItem(KEY); } catch (e) {} }
-  function only(id){ ["setup", "login", "app"].forEach(function(s){ $(s).hidden = s !== id; }); }
+  function setToken(t){ TCD.session.set(t, "s"); }
+  function only(id){ ["setup", "app"].forEach(function(s){ $(s).hidden = s !== id; }); }
+  // Not logged in: show the one-time setup screen if no admin exists yet, otherwise go to Log in.
   function showLogin(){
-    setToken(null); state.me = null;
-    api("status").then(function(s){ only(s.needsSetup ? "setup" : "login"); })
-      .catch(function(){ only("login"); });
+    TCD.session.clear(); state.me = null;
+    TCD.api("admin", "status").then(function(s){
+      if (s.needsSetup) only("setup"); else location.href = "/login?next=/admin";
+    }).catch(function(){ location.href = "/login?next=/admin"; });
   }
 
   $("s-show").addEventListener("change", function(){ $("s-key").type = this.checked ? "text" : "password"; });
@@ -123,14 +112,7 @@
       .then(function(j){ setToken(j.token); start(j.user); flash("Admin account created. Welcome, " + j.user.name + "!"); })
       .catch(function(ex){ err.textContent = ex.message; });
   });
-  $("login-form").addEventListener("submit", function(e){
-    e.preventDefault();
-    var err = $("login-err"); err.textContent = "";
-    api("login", { username: $("l-user").value, password: $("l-pw").value })
-      .then(function(j){ setToken(j.token); $("l-pw").value = ""; start(j.user); })
-      .catch(function(ex){ err.textContent = ex.message; });
-  });
-  $("logout").addEventListener("click", showLogin);
+  $("logout").addEventListener("click", function(){ TCD.session.clear(); location.href = "/login"; });
   $("refresh").addEventListener("click", function(){ load().then(function(){ flash("Refreshed"); }); });
   $("mypw-btn").addEventListener("click", function(){ $("mypw").hidden = !$("mypw").hidden; });
   $("mypw-cancel").addEventListener("click", function(){ $("mypw").reset(); $("mypw").hidden = true; });
@@ -143,35 +125,147 @@
   });
 
   function load(){
-    var calls = [api("listAds"), api("listDealers")];
-    if (isAdmin()) calls.push(api("listUsers"));
-    return Promise.all(calls).then(function(r){
-      state.ads = r[0].ads; state.dealers = r[1].dealers; state.users = r[2] ? r[2].users : []; render();
+    var none = Promise.resolve(null);
+    return Promise.all([api("listAds"), api("listDealers"), isAdmin() ? api("listUsers") : none, canVerify() ? api("listMembers") : none]).then(function(r){
+      state.ads = r[0].ads; state.dealers = r[1].dealers; state.users = r[2] ? r[2].users : []; state.members = r[3] ? r[3].members : []; render();
     }).catch(function(ex){ flash(ex.message, "err"); });
   }
   function start(user){
     state.me = user;
-    $("whoami").textContent = "Logged in as " + user.name + " (" + user.username + ") · " + (user.role === "admin" ? "Admin" : "Staff");
+    if (canVerify() && state.tab === "pending") state.tab = "accounts";
+    $("whoami").textContent = "Logged in as " + user.name + " (" + user.username + ") · " + (ROLE_LABEL[user.role] || user.role);
     only("app");
     $("view").innerHTML = '<p class="empty">Loading…</p>';
     load();
   }
 
   function tabs(){
-    var t = [["pending", "Waiting for approval"], ["approved", "Live"], ["sold", "Sold"], ["rejected", "Rejected"], ["dealers", "Dealers"]];
-    if (isAdmin()) t.push(["users", "Users"]);
+    var t = [["pending", "Cars waiting"], ["approved", "Live"], ["sold", "Sold"], ["rejected", "Rejected"], ["dealers", "Dealers"]];
+    if (canVerify()) t.unshift(["accounts", "Accounts to verify"]);
+    if (isAdmin()) t.push(["users", "Staff users"]);
     return t;
   }
   function render(){
     $("tabs").innerHTML = tabs().map(function(t){
-      var n = t[0] === "dealers" ? state.dealers.length : t[0] === "users" ? state.users.length : state.ads.filter(function(a){ return a.status === t[0]; }).length;
+      var n = t[0] === "dealers" ? state.dealers.length : t[0] === "users" ? state.users.length
+        : t[0] === "accounts" ? state.members.filter(function(m){ return m.status === "review"; }).length
+        : state.ads.filter(function(a){ return a.status === t[0]; }).length;
       return '<button data-tab="' + t[0] + '"' + (state.tab === t[0] ? ' class="on"' : "") + '>' + t[1] + '<span class="count">' + n + '</span></button>';
     }).join("");
-    $("view").innerHTML = state.tab === "dealers" ? dealersView() : state.tab === "users" ? usersView() : adsView(state.tab);
+    $("view").innerHTML = state.tab === "dealers" ? dealersView() : state.tab === "users" ? usersView()
+      : state.tab === "accounts" ? membersView() : adsView(state.tab);
   }
   $("tabs").addEventListener("click", function(e){
     var b = e.target.closest("button[data-tab]"); if (!b) return;
-    state.tab = b.dataset.tab; state.editing = null; state.editingUser = null; render();
+    state.tab = b.dataset.tab; state.editing = null; state.editingUser = null; state.openMember = null; render();
+  });
+
+  // ---- Customer accounts: check documents, confirm phone, then verify ----
+  var MEMBER_FILTERS = [["review", "Waiting for review"], ["incomplete", "Not finished"], ["verified", "Verified"], ["rejected", "Rejected"], ["suspended", "Suspended"]];
+  var STATUS_LABEL = { review: "WAITING FOR REVIEW", incomplete: "NOT FINISHED", verified: "VERIFIED", rejected: "REJECTED", suspended: "SUSPENDED" };
+  var STATUS_PILL = { review: "pending", incomplete: "off", verified: "approved", rejected: "rejected", suspended: "rejected" };
+  function memberName(m){ return m.type === "dealer" && m.business && m.business.name ? m.business.name : m.fullName; }
+  function membersView(){
+    var filters = '<div class="tabs" style="margin-bottom:12px">' + MEMBER_FILTERS.map(function(f){
+      var n = state.members.filter(function(m){ return m.status === f[0]; }).length;
+      return '<button data-mfilter="' + f[0] + '"' + (state.memberFilter === f[0] ? ' class="on"' : "") + '>' + f[1] + '<span class="count">' + n + '</span></button>';
+    }).join("") + '</div>';
+    var list = state.members.filter(function(m){ return m.status === state.memberFilter; });
+    if (!list.length) return filters + '<p class="empty">No accounts here.</p>';
+    return filters + list.map(function(m){
+      var open = state.openMember === m.id;
+      return '<div class="row" style="grid-template-columns:1fr auto" data-member="' + m.id + '"><div>' +
+        '<h3>' + esc(memberName(m)) + '</h3>' +
+        '<div style="margin:4px 0"><span class="pill">' + (m.type === "dealer" ? "CAR DEALER" : "PRIVATE PERSON") + '</span><span class="pill ' + STATUS_PILL[m.status] + '">' + STATUS_LABEL[m.status] + '</span>' +
+          (m.phoneVerified ? '<span class="pill approved">📞 PHONE OK</span>' : "") + (m.docsChecked ? '<span class="pill approved">📄 DOCS OK</span>' : "") + '</div>' +
+        '<div class="meta">' + (m.type === "dealer" ? "Contact: " + esc(m.fullName) + " · " : "") + '+' + esc(m.phone) + ' · ' + esc(m.city || "no city") + ' · ' + (m.docs || []).length + ' documents · signed up ' + new Date(m.createdAt).toLocaleDateString() + '</div>' +
+        (open ? memberDetail(m) : "") +
+        '</div><div class="btns"><button class="btn ' + (open ? "btn-ghost" : "btn-main") + ' btn-sm" data-act="toggle-member">' + (open ? "Close" : "Open & check") + '</button></div></div>';
+    }).join("");
+  }
+  function memberDetail(m){
+    var b = m.business || {};
+    var rows = [["Full name", m.fullName], ["Mobile", "+" + m.phone], ["City", m.city], ["Email", m.email], ["ID type", m.idType], ["ID number", m.idNumber]];
+    if (m.type === "dealer") rows = [["Business name", b.name], ["TIN", b.tin], ["Business licence no.", b.licenceNo], ["BRELA no.", b.brelaNo], ["Business address", b.address]].concat(rows);
+    var call = "tel:+" + m.phone;
+    var wa = TCD.waLink(m.phone, "Hello " + m.fullName + ", this is Tanzania Car Dealers. We are verifying your account. Can you confirm your ID number?");
+    return '<div class="panel" style="margin-top:12px;padding:16px">' +
+      '<table class="spec-table">' + rows.map(function(r){ return '<tr><td>' + r[0] + '</td><td>' + esc(r[1] || "–") + '</td></tr>'; }).join("") + '</table>' +
+      (m.missing && m.missing.length ? '<p class="hint" style="color:var(--danger)">Missing: ' + m.missing.map(esc).join(", ") + '</p>' : "") +
+      '<h4 style="margin:16px 0 6px">Documents</h4>' +
+      ((m.docs || []).length ? (m.docs || []).map(function(d){
+        return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)"><span>' + esc(d.kind.replace(/_/g, " ")) + ' <span class="hint">· ' + esc(d.name) + ' · ' + Math.round(d.size / 1024) + ' KB</span></span>' +
+          '<button class="btn btn-ghost btn-sm" data-act="view-doc" data-doc="' + d.id + '">View</button></div>';
+      }).join("") : '<p class="hint">No documents uploaded.</p>') +
+      '<h4 style="margin:16px 0 6px">Checks</h4>' +
+      '<p class="hint" style="margin:0 0 8px">Call the number, confirm the name and ID number match the documents, and that the person or company is real.</p>' +
+      '<div class="btns" style="margin-bottom:8px"><a class="btn btn-ghost btn-sm" href="' + call + '">📞 Call +' + esc(m.phone) + '</a><a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="' + esc(wa) + '">WhatsApp</a></div>' +
+      '<label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" data-check="phoneVerified" style="width:auto"' + (m.phoneVerified ? " checked" : "") + '> Phone confirmed: I spoke to this person on this number' + (m.phoneVerifiedBy ? ' <span class="hint">(' + esc(m.phoneVerifiedBy) + ')</span>' : "") + '</label>' +
+      '<label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" data-check="docsChecked" style="width:auto"' + (m.docsChecked ? " checked" : "") + '> Documents checked: they are real and match the details' + (m.docsCheckedBy ? ' <span class="hint">(' + esc(m.docsCheckedBy) + ')</span>' : "") + '</label>' +
+      '<h4 style="margin:16px 0 6px">Decision</h4>' +
+      '<textarea data-field="message" placeholder="Message to the customer (needed when rejecting), or an internal note" style="min-height:70px"></textarea>' +
+      '<div class="btns" style="margin-top:8px">' +
+        (m.status !== "verified" ? '<button class="btn btn-main btn-sm" data-decide="verify">✓ Verify account</button>' : "") +
+        (m.status !== "rejected" && m.status !== "verified" ? '<button class="btn btn-ghost btn-sm" data-decide="reject">Reject (ask to fix)</button>' : "") +
+        (m.status !== "suspended" ? '<button class="btn btn-danger btn-sm" data-decide="suspend">Suspend</button>' : '<button class="btn btn-ghost btn-sm" data-decide="reopen">Re-open for review</button>') +
+        '<button class="btn btn-ghost btn-sm" data-act="note">Save note only</button>' +
+        '<button class="btn btn-ghost btn-sm" data-act="reset-member-pw">Reset password</button>' +
+        (isAdmin() ? '<button class="btn btn-danger btn-sm" data-act="delete-member">Delete account</button>' : "") +
+      '</div>' +
+      (m.reviewMessage ? '<p class="hint">Last message to customer: ' + esc(m.reviewMessage) + '</p>' : "") +
+      ((m.notes || []).length ? '<h4 style="margin:16px 0 6px">History</h4>' + m.notes.slice().reverse().map(function(n){
+        return '<div class="hint" style="margin:0 0 4px">' + new Date(n.at).toLocaleString() + ' · <b>' + esc(n.by) + '</b>: ' + esc(n.text) + '</div>';
+      }).join("") : "") +
+      '</div>';
+  }
+  function updateMember(m){ state.members = state.members.map(function(x){ return x.id === m.id ? m : x; }); render(); }
+  function memberAction(row, data, okText){
+    return api("reviewMember", Object.assign({ id: row.dataset.member }, data))
+      .then(function(j){ updateMember(j.member); if (okText) flash(okText); return j; })
+      .catch(function(ex){ flash(ex.message, "err"); render(); });
+  }
+  $("view").addEventListener("click", function(e){
+    var f = e.target.closest("button[data-mfilter]");
+    if (f) { state.memberFilter = f.dataset.mfilter; state.openMember = null; return render(); }
+    var row = e.target.closest("[data-member]"); if (!row) return;
+    var b = e.target.closest("button"); if (!b) return;
+    var id = row.dataset.member, msgBox = row.querySelector('[data-field="message"]');
+    var message = msgBox ? msgBox.value.trim() : "";
+    if (b.dataset.act === "toggle-member") { state.openMember = state.openMember === id ? null : id; return render(); }
+    if (b.dataset.act === "view-doc") {
+      var w = window.open("", "_blank");
+      if (w) w.document.write("<p style='font-family:sans-serif'>Loading document…</p>");
+      api("getDoc", { memberId: id, docId: b.dataset.doc }).then(function(j){
+        var bytes = Uint8Array.from(atob(j.data), function(c){ return c.charCodeAt(0); });
+        var url = URL.createObjectURL(new Blob([bytes], { type: j.contentType }));
+        if (w) w.location.href = url; else window.open(url, "_blank");
+      }).catch(function(ex){ if (w) w.close(); flash(ex.message, "err"); });
+    }
+    if (b.dataset.decide) {
+      var d = b.dataset.decide;
+      if (d === "suspend" && !confirm("Suspend this account? They can't log in and their live cars are taken down.")) return;
+      memberAction(row, { decision: d, message: message }, { verify: "Account verified", reject: "Account rejected – the customer will see your message", suspend: "Account suspended", reopen: "Account re-opened for review" }[d]);
+    }
+    if (b.dataset.act === "note") {
+      if (!message) return flash("Write a note first.", "err");
+      memberAction(row, { note: message }, "Note saved");
+    }
+    if (b.dataset.act === "reset-member-pw") {
+      var pw = prompt("New password for this customer (at least 8 characters). Tell it to them privately, e.g. on the phone.");
+      if (!pw) return;
+      api("resetMemberPassword", { id: id, password: pw }).then(function(){ flash("Password reset"); load(); }).catch(function(ex){ flash(ex.message, "err"); });
+    }
+    if (b.dataset.act === "delete-member") {
+      if (!confirm("Delete this account and all its documents? This cannot be undone.")) return;
+      api("deleteMember", { id: id }).then(function(){ state.openMember = null; return load(); }).then(function(){ flash("Account deleted"); })
+        .catch(function(ex){ flash(ex.message, "err"); });
+    }
+  });
+  $("view").addEventListener("change", function(e){
+    var c = e.target; if (!c.dataset || !c.dataset.check) return;
+    var row = c.closest("[data-member]"), data = {};
+    data[c.dataset.check] = c.checked;
+    memberAction(row, data, c.checked ? "Saved" : "Unticked");
   });
 
   function featuredLeft(ad){
@@ -204,7 +298,7 @@
         '</div>' +
         '<select data-act="feature"><option value="">' + (left ? "Featured: change…" : "Make featured…") + '</option><option value="7">Feature 7 days</option><option value="14">Feature 14 days</option><option value="30">Feature 30 days</option>' + (left ? '<option value="0">Remove featured</option>' : "") + '</select>' +
         '<select data-act="dealer"><option value="">No dealer page</option>' + dealerOpts.replace('value="' + a.dealerId + '"', 'value="' + a.dealerId + '" selected') + '</select>' +
-        (isAdmin() ? '<button class="btn btn-danger btn-sm" data-act="delete">Delete</button>' : "") + '</div></div>';
+        (canVerify() ? '<button class="btn btn-danger btn-sm" data-act="delete">Delete</button>' : "") + '</div></div>';
     }).join("");
   }
 
@@ -275,7 +369,7 @@
         return '<div class="row" style="grid-template-columns:1fr auto" data-dealer="' + d.id + '"><div><h3>' + esc(d.name) + (d.verified ? ' <span class="verified">✓ Verified</span>' : "") + '</h3>' +
           '<div class="meta">' + esc([d.address, d.city].filter(Boolean).join(", ")) + ' · WhatsApp +' + esc(d.whatsapp) + ' · ' + (counts[d.id] || 0) + ' ads</div></div>' +
           '<div class="btns"><a class="btn btn-ghost btn-sm" target="_blank" href="/dealer?id=' + d.id + '">View page</a>' +
-          '<button class="btn btn-ghost btn-sm" data-act="edit-dealer">Edit</button>' + (isAdmin() ? '<button class="btn btn-danger btn-sm" data-act="delete-dealer">Delete</button>' : "") + '</div></div>';
+          '<button class="btn btn-ghost btn-sm" data-act="edit-dealer">Edit</button>' + (canVerify() ? '<button class="btn btn-danger btn-sm" data-act="delete-dealer">Delete</button>' : "") + '</div></div>';
       }).join("") : '<p class="empty">No dealers yet. Add one, then link their ads to them from the Live tab.</p>');
   }
 
@@ -284,7 +378,8 @@
     return '<form id="user-form" class="panel" style="margin-bottom:18px" autocomplete="off"><h2 style="font-size:20px">' + (isNew ? "New user" : "Edit user: " + esc(u.username)) + '</h2><div class="form-grid">' +
       (isNew ? '<div><label>ID (for login) *</label><input name="username" required maxlength="30" autocapitalize="none" placeholder="e.g. juma"></div>' : "") +
       '<div><label>Full name *</label><input name="name" required maxlength="60" value="' + esc(u.name) + '"></div>' +
-      '<div><label>Role</label><select name="role"><option value="staff"' + (u.role !== "admin" ? " selected" : "") + '>Staff: manage ads and dealers</option><option value="admin"' + (u.role === "admin" ? " selected" : "") + '>Admin: everything, including users</option></select></div>' +
+      '<div><label>Role</label><select name="role">' + [["staff", "Staff: approve cars, manage dealers"], ["manager", "Manager: also verify customer accounts"], ["admin", "Admin: everything, including staff users"]].map(function(r){
+        return '<option value="' + r[0] + '"' + ((u.role || "staff") === r[0] ? " selected" : "") + '>' + r[1] + '</option>'; }).join("") + '</select></div>' +
       '<div><label>' + (isNew ? "Password *" : "New password (leave empty to keep)") + '</label><input name="password" type="password" minlength="8" autocomplete="new-password"' + (isNew ? " required" : "") + '><div class="hint">At least 8 characters. Give it to the user privately.</div></div>' +
       (isNew ? "" : '<div class="full"><label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" name="active" style="width:auto"' + (u.active ? " checked" : "") + '> Account active (untick to block this user from logging in)</label></div>') +
       '<div class="full btns"><button class="btn btn-main">' + (isNew ? "Create user" : "Save changes") + '</button><button type="button" class="btn btn-ghost" data-act="cancel-user">Cancel</button></div>' +
@@ -324,8 +419,11 @@
     }
   });
 
-  if (token) {
-    api("me").then(function(j){ start(j.user); }).catch(showLogin);
+  var s = TCD.session.get();
+  if (s.token && s.kind === "s") {
+    api("me").then(function(j){ start(j.user); }).catch(function(){});
+  } else if (s.token && s.kind === "m") {
+    location.href = "/account";
   } else showLogin();
 })();
 </script>

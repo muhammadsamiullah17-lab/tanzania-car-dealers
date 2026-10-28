@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create an account · Tanzania Car Dealers</title>
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.choice label{border:2px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;font-weight:500;display:block;margin:0}
+.choice label b{display:block;font-size:17px;margin-bottom:4px}
+.choice input{position:absolute;opacity:0}
+.choice label:has(input:checked){border-color:var(--green);background:var(--soft)}
+@media (max-width:560px){.choice{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<section>
+  <div class="wrap" style="max-width:760px">
+    <h1 style="font-size:32px;margin:0 0 6px">Create an account</h1>
+    <p class="sub">To keep buyers safe, every seller is checked by our team before they can post. You'll upload your documents on the next step, then we call you to confirm.</p>
+    <form id="form" class="panel" novalidate>
+      <div class="choice">
+        <label><input type="radio" name="type" value="private" checked><b>Private person</b>Selling my own car. You'll need your ID and a selfie.</label>
+        <label><input type="radio" name="type" value="dealer"><b>Car dealer / company</b>Showroom or business. You'll need your business licence, TIN and owner's ID.</label>
+      </div>
+      <div class="form-grid">
+        <div class="full dealer-only" hidden><label for="businessName">Business name *</label><input id="businessName" name="businessName" maxlength="100" placeholder="As on your business licence"></div>
+        <div><label for="fullName" id="name-label">Full name *</label><input id="fullName" name="fullName" required maxlength="80" autocomplete="name" placeholder="As on your ID"></div>
+        <div><label for="phone">Mobile number *</label><input id="phone" name="phone" type="tel" required autocomplete="tel" placeholder="0712 345 678"><div class="hint">You'll log in with this. We'll call it to confirm.</div></div>
+        <div><label for="city">City *</label><input id="city" name="city" list="cities" required maxlength="40"></div>
+        <div><label for="email">Email (optional)</label><input id="email" name="email" type="email" maxlength="120" autocomplete="email"></div>
+        <div><label for="password">Password *</label><input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"><div class="hint">At least 8 characters.</div></div>
+        <div><label for="password2">Repeat password *</label><input id="password2" type="password" required minlength="8" autocomplete="new-password"></div>
+        <div class="full"><label style="display:flex;gap:10px;align-items:flex-start;font-weight:500"><input type="checkbox" name="consent" id="consent" style="width:auto;margin-top:4px">
+          <span>I agree that Tanzania Car Dealers may check my ID, business documents and phone number to verify my account, and keep them securely for that purpose. My details are true.</span></label></div>
+        <div class="full"><div id="err" class="notice err" hidden></div>
+          <button class="btn btn-main" id="btn" style="width:100%">Create account</button>
+          <p class="hint" style="text-align:center">Already have an account? <a href="/login"><b>Log in</b></a></p></div>
+      </div>
+    </form>
+  </div>
+</section>
+<datalist id="cities"><option>Dar es Salaam</option><option>Arusha</option><option>Mwanza</option><option>Dodoma</option><option>Mbeya</option><option>Morogoro</option><option>Tanga</option><option>Moshi</option><option>Zanzibar</option><option>Iringa</option><option>Tabora</option><option>Kigoma</option></datalist>
+<script src="/config.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("sell");
+  var form = document.getElementById("form"), f = form.elements;
+  var type = new URLSearchParams(location.search).get("type");
+  if (type === "dealer") f.type.value = "dealer";
+  function sync(){
+    var dealer = f.type.value === "dealer";
+    form.querySelectorAll(".dealer-only").forEach(function(el){ el.hidden = !dealer; });
+    document.getElementById("name-label").textContent = dealer ? "Owner / manager full name *" : "Full name *";
+  }
+  form.querySelectorAll('input[name="type"]').forEach(function(r){ r.addEventListener("change", sync); });
+  sync();
+
+  form.addEventListener("submit", function(e){
+    e.preventDefault();
+    var err = document.getElementById("err"), btn = document.getElementById("btn");
+    function show(msg){ err.textContent = msg; err.hidden = false; }
+    err.hidden = true;
+    if (f.password.value !== f.password2.value) return show("The two passwords are not the same.");
+    btn.disabled = true; btn.textContent = "Creating…";
+    TCD.api("account", "signup", {
+      type: f.type.value, businessName: f.businessName.value, fullName: f.fullName.value, phone: f.phone.value,
+      city: f.city.value, email: f.email.value, password: f.password.value, consent: f.consent.checked,
+    }).then(function(j){
+      TCD.session.set(j.token, j.kind);
+      location.href = "/account?new=1";
+    }).catch(function(ex){ show(ex.message); btn.disabled = false; btn.textContent = "Create account"; });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Log in · Tanzania Car Dealers</title>
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<section>
+  <div class="wrap">
+    <div class="panel" style="max-width:440px;margin:24px auto">
+      <h1 style="font-size:28px;margin:0 0 6px">Log in</h1>
+      <p class="sub">Use your phone number, or your staff ID if you work with us.</p>
+      <form id="form">
+        <div style="margin-bottom:14px"><label for="identifier">Phone number or staff ID</label><input id="identifier" required autocomplete="username" autocapitalize="none" placeholder="0712 345 678"></div>
+        <div style="margin-bottom:6px"><label for="password">Password</label><input id="password" type="password" required autocomplete="current-password"></div>
+        <div id="err" class="hint" style="color:var(--danger);min-height:1.2em"></div>
+        <button class="btn btn-main" id="btn" style="width:100%;margin-top:8px">Log in</button>
+      </form>
+      <p class="hint" style="text-align:center;margin-top:16px">New here? <a href="/signup"><b>Create an account</b></a> to sell your car.</p>
+      <p class="hint" style="text-align:center">Forgot your password? <a id="forgot" target="_blank" rel="noopener" href="#">Message us on WhatsApp</a>.</p>
+    </div>
+  </div>
+</section>
+<script src="/config.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("");
+  var next = new URLSearchParams(location.search).get("next");
+  if (next && !/^\/[a-z]/.test(next)) next = null; // only local paths
+  document.getElementById("forgot").href = TCD.waLink(window.SITE.whatsapp, "Hello, I forgot my Tanzania Car Dealers password. My phone number is ");
+  document.getElementById("form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var err = document.getElementById("err"), btn = document.getElementById("btn");
+    err.textContent = ""; btn.disabled = true;
+    TCD.api("account", "login", { identifier: document.getElementById("identifier").value, password: document.getElementById("password").value })
+      .then(function(j){
+        TCD.session.set(j.token, j.kind);
+        location.href = next || (j.kind === "s" ? "/admin" : "/account");
+      })
+      .catch(function(ex){ err.textContent = ex.message; btn.disabled = false; });
+  });
+})();
+</script>
+</body>
+</html>

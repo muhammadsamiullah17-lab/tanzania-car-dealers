@@ -37,7 +37,7 @@
     var d = car.dealerId && dealersById[car.dealerId];
     if (d) return { name: d.name, href: "/dealer?id=" + d.id, verified: d.verified, phone: d.whatsapp };
     if (car.house) return { name: S.name, href: "/#stock", verified: true, phone: S.whatsapp };
-    return { name: car.sellerType === "dealer" && car.businessName ? car.businessName : "Private seller", href: "", verified: false, phone: car.sellerPhone };
+    return { name: car.sellerType === "dealer" && car.businessName ? car.businessName : "Private seller", href: "", verified: Boolean(car.sellerVerified), phone: car.sellerPhone };
   }
 
   function enquiry(car) {
@@ -74,13 +74,56 @@
       });
   }
 
-  // Staff log in from the header; once a session is saved in this browser it reads "Admin panel".
+  // One saved login per browser: kind "s" is staff, "m" is a customer member.
+  var session = {
+    get: function () {
+      try { return { token: localStorage.getItem("tcd_token"), kind: localStorage.getItem("tcd_kind") }; } catch (e) { return {}; }
+    },
+    set: function (token, kind) {
+      try { localStorage.setItem("tcd_token", token); localStorage.setItem("tcd_kind", kind); } catch (e) {}
+    },
+    clear: function () {
+      try { localStorage.removeItem("tcd_token"); localStorage.removeItem("tcd_kind"); } catch (e) {}
+    },
+  };
+
+  // POST to /api/<endpoint> with the saved session. Rejects with the server's error message.
+  function api(endpoint, action, data) {
+    return fetch("/api/" + endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + (session.get().token || "") },
+      body: JSON.stringify(Object.assign({ action: action }, data || {})),
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) { var e = new Error(j.error || "Something went wrong"); e.status = r.status; throw e; }
+        return j;
+      });
+    });
+  }
+
+  // Shrinks a photo to max `size` px as JPEG so uploads stay small on mobile data.
+  function shrinkImage(file, size, quality) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        var scale = Math.min(1, size / Math.max(img.width, img.height));
+        var c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", quality || 0.8));
+      };
+      img.onerror = function () { reject(new Error("Could not read " + file.name)); };
+      img.src = url;
+    });
+  }
+
   function loginButton() {
-    if (/^\/admin/.test(location.pathname)) return "";
-    var loggedIn = false;
-    try { loggedIn = Boolean(localStorage.getItem("tcd_admin_token")); } catch (e) {}
-    var label = loggedIn ? "Admin panel" : "Log in";
-    return '<a class="btn btn-ghost btn-login" href="/admin" aria-label="' + label + '" title="' + label + '">' +
+    if (/^\/(admin|login|account)/.test(location.pathname)) return "";
+    var kind = session.get().token ? session.get().kind : null;
+    var label = kind === "s" ? "Admin panel" : kind === "m" ? "My account" : "Log in";
+    var href = kind === "s" ? "/admin" : kind === "m" ? "/account" : "/login";
+    return '<a class="btn btn-ghost btn-login" href="' + href + '" aria-label="' + label + '" title="' + label + '">' +
       '<svg class="wa-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v3h16v-3c0-2.8-3.6-5-8-5z"/></svg>' +
       '<span class="label">' + label + '</span></a>';
   }
@@ -112,5 +155,6 @@
   }
 
   window.TCD = { esc: esc, waLink: waLink, money: money, fmt: fmt, title: title, carSvg: carSvg, card: card, enquiry: enquiry,
-    sellerLabel: sellerLabel, houseCars: houseCars, loadMarket: loadMarket, chrome: chrome, WA_ICON: WA_ICON };
+    sellerLabel: sellerLabel, houseCars: houseCars, loadMarket: loadMarket, chrome: chrome, WA_ICON: WA_ICON,
+    session: session, api: api, shrinkImage: shrinkImage };
 })();
