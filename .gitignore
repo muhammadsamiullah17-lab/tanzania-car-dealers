@@ -1,5 +1,5 @@
+.claude
 .env*
 .vercel
 ADMIN-PASSWORD.txt
 node_modules
-.claude
