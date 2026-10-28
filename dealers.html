@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car dealers in Tanzania · Tanzania Car Dealers</title>
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<section>
+  <div class="wrap">
+    <h1 style="font-size:34px;margin:0 0 6px">Car dealers</h1>
+    <p class="sub">Showrooms and dealers selling on Tanzania Car Dealers. Verified dealers have been checked by our team.</p>
+    <div class="filters" style="grid-template-columns:2fr 1fr">
+      <input id="q" type="search" placeholder="Search dealer name">
+      <select id="f-city"><option value="">All cities</option></select>
+    </div>
+    <div class="grid" id="grid"><p class="empty">Loading dealers…</p></div>
+    <div class="sell-band" style="margin-top:32px">
+      <div><h2>Are you a dealer?</h2><p>Get your own dealer page, a Verified badge and all your cars in one place.</p></div>
+      <a class="btn btn-wa" id="join" target="_blank" rel="noopener" href="#"></a>
+    </div>
+  </div>
+</section>
+<script src="/config.js"></script>
+<script src="/cars.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("dealers");
+  var esc = TCD.esc, grid = document.getElementById("grid"), q = document.getElementById("q"), fCity = document.getElementById("f-city");
+  var join = document.getElementById("join");
+  join.href = TCD.waLink(window.SITE.whatsapp, "Hello, I am a car dealer and I would like a dealer page on Tanzania Car Dealers.");
+  join.innerHTML = TCD.WA_ICON + "Join as a dealer";
+
+  TCD.loadMarket().then(function(m){
+    var counts = {};
+    m.cars.forEach(function(c){ if (c.dealerId) counts[c.dealerId] = (counts[c.dealerId] || 0) + 1; });
+    var house = { id: "", name: window.SITE.name, city: window.SITE.location.split(",")[0], verified: true, house: true, about: "Our own showroom stock." };
+    var all = [house].concat(m.dealers);
+    counts[""] = TCD.houseCars().length;
+    Array.from(new Set(all.map(function(d){ return d.city; }))).filter(Boolean).sort().forEach(function(c){ fCity.add(new Option(c, c)); });
+
+    function render(){
+      var term = q.value.trim().toLowerCase();
+      var list = all.filter(function(d){
+        return (!term || d.name.toLowerCase().indexOf(term) !== -1) && (!fCity.value || d.city === fCity.value);
+      });
+      grid.innerHTML = list.length ? list.map(function(d){
+        var href = d.house ? "/#stock" : "/dealer?id=" + d.id;
+        return '<a class="panel dealer-card" href="' + href + '"><span class="logo-big">' + esc(d.name.charAt(0)) + '</span>' +
+          '<b style="font-size:18px">' + esc(d.name) + '</b>' + (d.verified ? '<span><span class="verified">✓ Verified dealer</span></span>' : "") +
+          '<span class="seller">' + esc([d.address, d.city].filter(Boolean).join(", ")) + '</span>' +
+          '<span class="seller">' + (counts[d.id] || 0) + ((counts[d.id] || 0) === 1 ? ' car' : ' cars') + ' for sale</span></a>';
+      }).join("") : '<p class="empty">No dealers match.</p>';
+    }
+    q.addEventListener("input", render); fCity.addEventListener("input", render);
+    render();
+  });
+})();
+</script>
+</body>
+</html>

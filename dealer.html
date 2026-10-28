@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dealer · Tanzania Car Dealers</title>
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<section>
+  <div class="wrap" id="root"><p class="empty">Loading…</p></div>
+</section>
+<script src="/config.js"></script>
+<script src="/cars.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("dealers");
+  var esc = TCD.esc, root = document.getElementById("root");
+  var id = new URLSearchParams(location.search).get("id");
+  TCD.loadMarket().then(function(m){
+    var d = m.dealersById[id];
+    if (!d) {
+      root.innerHTML = '<h2>Dealer not found</h2><p class="sub">This dealer page does not exist.</p><a class="btn btn-ghost" href="/dealers">All dealers</a>';
+      return;
+    }
+    document.title = d.name + " · Tanzania Car Dealers";
+    var cars = m.cars.filter(function(c){ return c.dealerId === d.id; });
+    root.innerHTML =
+      '<div class="crumbs"><a href="/">Home</a> › <a href="/dealers">Dealers</a> › ' + esc(d.name) + '</div>' +
+      '<div class="panel" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-bottom:28px">' +
+        '<span class="logo-big" style="width:72px;height:72px;font-size:28px">' + esc(d.name.charAt(0)) + '</span>' +
+        '<div style="flex:1;min-width:220px"><h1 style="font-size:28px;margin:0">' + esc(d.name) + '</h1>' +
+          (d.verified ? '<span class="verified">✓ Verified dealer</span>' : "") +
+          '<p class="seller" style="margin:8px 0 0">' + esc([d.address, d.city].filter(Boolean).join(", ")) + '</p>' +
+          (d.about ? '<p style="margin:8px 0 0;white-space:pre-line">' + esc(d.about) + '</p>' : "") + '</div>' +
+        '<a class="btn btn-wa" target="_blank" rel="noopener" href="' + esc(TCD.waLink(d.whatsapp, "Hello " + d.name + ", I found you on Tanzania Car Dealers.")) + '">' + TCD.WA_ICON + 'WhatsApp dealer</a>' +
+      '</div>' +
+      '<h2>' + cars.length + (cars.length === 1 ? ' car' : ' cars') + ' for sale</h2><p class="sub">Featured cars first.</p>' +
+      (cars.length ? '<div class="grid">' + cars.map(function(c){ return TCD.card(c, m.dealersById); }).join("") + '</div>' : '<p class="empty">No cars listed right now. Message the dealer on WhatsApp to ask what is in stock.</p>');
+  });
+})();
+</script>
+</body>
+</html>

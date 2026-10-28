@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sell your car · Tanzania Car Dealers</title>
+<meta name="description" content="Post your car for free on Tanzania Car Dealers. Buyers contact you on WhatsApp.">
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<section>
+  <div class="wrap" style="max-width:820px">
+    <h1 style="font-size:34px;margin:0 0 6px">Sell your car</h1>
+    <p class="sub">Posting is free. Our team checks every ad, usually within a few hours, and then buyers can message you on WhatsApp.</p>
+    <div id="msg"></div>
+    <form id="form" class="panel" novalidate>
+      <div class="form-grid">
+        <div class="full"><label>Who is selling?</label>
+          <div class="radio-row">
+            <label><input type="radio" name="sellerType" value="private" checked> Private owner</label>
+            <label><input type="radio" name="sellerType" value="dealer"> Car dealer / showroom</label>
+          </div>
+        </div>
+        <div class="full" id="biz" hidden><label for="businessName">Business name</label><input id="businessName" name="businessName" maxlength="80" placeholder="e.g. Kariakoo Motors"><div class="hint">Dealers can get their own page on our site. We'll contact you on WhatsApp about it.</div></div>
+
+        <div><label for="make">Make *</label><input id="make" name="make" list="makes" required maxlength="40" placeholder="Toyota"></div>
+        <div><label for="model">Model *</label><input id="model" name="model" required maxlength="60" placeholder="Land Cruiser Prado"></div>
+        <div><label for="year">Year *</label><input id="year" name="year" type="number" required min="1970" placeholder="2016"></div>
+        <div><label for="price">Price (TZS) *</label><input id="price" name="price" type="number" required min="100000" step="1000" placeholder="45000000"><div class="hint" id="price-hint"></div></div>
+        <div><label for="km">Mileage (km) *</label><input id="km" name="km" type="number" required min="0" placeholder="85000"></div>
+        <div><label for="city">City *</label><input id="city" name="city" list="cities" required maxlength="40" placeholder="Dar es Salaam"></div>
+        <div><label for="body">Body type</label><select id="body" name="body"><option>SUV</option><option>Sedan</option><option>Hatchback</option><option>Pickup</option><option>Van</option><option>Wagon</option><option>Coupe</option><option>Truck</option><option>Bus</option><option>Other</option></select></div>
+        <div><label for="fuel">Fuel</label><select id="fuel" name="fuel"><option>Petrol</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select></div>
+        <div><label for="gearbox">Gearbox</label><select id="gearbox" name="gearbox"><option>Automatic</option><option>Manual</option></select></div>
+        <div><label for="color">Colour</label><input id="color" name="color" maxlength="30" placeholder="Silver"></div>
+        <div class="full"><label for="description">Description</label><textarea id="description" name="description" maxlength="2000" placeholder="Condition, service history, extras, reason for selling…"></textarea></div>
+
+        <div class="full"><label for="photos">Photos * (up to 6)</label><input id="photos" type="file" accept="image/*" multiple>
+          <div class="hint">Take photos in daylight, holding the phone sideways. Include front, back, both sides, inside and the dashboard.</div>
+          <div class="thumbs" id="thumbs"></div></div>
+
+        <div><label for="sellerName">Your name *</label><input id="sellerName" name="sellerName" required maxlength="60" autocomplete="name"></div>
+        <div><label for="sellerPhone">Your WhatsApp number *</label><input id="sellerPhone" name="sellerPhone" type="tel" required placeholder="0712 345 678" autocomplete="tel"><div class="hint">Buyers will message you on this number.</div></div>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="full"><button class="btn btn-main" id="submit" type="submit" style="width:100%">Post my ad for free</button>
+          <div class="hint" style="text-align:center">By posting, you confirm the car is yours (or your business's) to sell and the details are true.</div></div>
+      </div>
+    </form>
+  </div>
+</section>
+<datalist id="makes"><option>Toyota</option><option>Nissan</option><option>Honda</option><option>Mazda</option><option>Subaru</option><option>Mitsubishi</option><option>Suzuki</option><option>Isuzu</option><option>Mercedes-Benz</option><option>BMW</option><option>Volkswagen</option><option>Land Rover</option><option>Hyundai</option><option>Kia</option></datalist>
+<datalist id="cities"><option>Dar es Salaam</option><option>Arusha</option><option>Mwanza</option><option>Dodoma</option><option>Mbeya</option><option>Morogoro</option><option>Tanga</option><option>Moshi</option><option>Zanzibar</option><option>Iringa</option><option>Tabora</option><option>Kigoma</option></datalist>
+
+<script src="/config.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("sell");
+  var form = document.getElementById("form"), msg = document.getElementById("msg"), btn = document.getElementById("submit");
+  var photos = [];
+
+  form.querySelectorAll('input[name="sellerType"]').forEach(function(r){
+    r.addEventListener("change", function(){ document.getElementById("biz").hidden = form.sellerType.value !== "dealer"; });
+  });
+  form.price.addEventListener("input", function(){
+    var v = Number(form.price.value);
+    document.getElementById("price-hint").textContent = v ? TCD.money(v) : "";
+  });
+
+  // Shrink each photo to max 1280px JPEG so uploads stay small on mobile data.
+  function shrink(file){
+    return new Promise(function(resolve, reject){
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function(){
+        var scale = Math.min(1, 1280 / Math.max(img.width, img.height));
+        var c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = function(){ reject(new Error("Could not read " + file.name)); };
+      img.src = url;
+    });
+  }
+  document.getElementById("photos").addEventListener("change", function(e){
+    var files = Array.from(e.target.files).slice(0, 6);
+    Promise.all(files.map(shrink)).then(function(list){
+      photos = list;
+      document.getElementById("thumbs").innerHTML = list.map(function(p){ return '<img src="' + p + '" alt="">'; }).join("");
+    }).catch(function(err){ show("err", err.message); });
+  });
+
+  function show(kind, text){
+    msg.innerHTML = '<div class="notice ' + kind + '">' + TCD.esc(text) + '</div>';
+    msg.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  form.addEventListener("submit", function(e){
+    e.preventDefault();
+    var data = {};
+    new FormData(form).forEach(function(v, k){ data[k] = v; });
+    var missing = Array.from(form.querySelectorAll("[required]")).filter(function(el){ return !el.value.trim(); });
+    if (missing.length) return show("err", "Please fill in all fields marked *.");
+    if (!photos.length) return show("err", "Please add at least one photo of the car.");
+    data.photos = photos;
+    btn.disabled = true; btn.textContent = "Posting…";
+    fetch("/api/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
+      .then(function(r){ return r.json().then(function(j){ if (!r.ok) throw new Error(j.error || "Something went wrong"); return j; }); })
+      .then(function(j){
+        form.hidden = true;
+        msg.innerHTML = '<div class="notice ok"><b>Thank you! Your ad was sent for review.</b><br>Ad ID: ' + TCD.esc(j.id) +
+          '. We usually approve ads within a few hours. Want it shown at the top as a Featured ad? ' +
+          '<a target="_blank" rel="noopener" href="' + TCD.esc(TCD.waLink(window.SITE.whatsapp, "Hello, I posted ad " + j.id + " and I would like to make it Featured.")) + '">Message us on WhatsApp</a>.</div>' +
+          '<a class="btn btn-ghost" href="/sell">Post another car</a> <a class="btn btn-ghost" href="/">Back to home</a>';
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      })
+      .catch(function(err){ show("err", err.message); })
+      .finally(function(){ btn.disabled = false; btn.textContent = "Post my ad for free"; });
+  });
+})();
+</script>
+</body>
+</html>

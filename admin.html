@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin · Tanzania Car Dealers</title>
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.tabs button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;padding:8px 14px;font:600 14px Inter,sans-serif;cursor:pointer}
+.tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tabs .count{opacity:.7;margin-left:4px}
+.row{display:grid;grid-template-columns:120px 1fr auto;gap:16px;align-items:start;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--card);margin-bottom:12px}
+.row img,.row .noimg{width:120px;height:84px;object-fit:cover;border-radius:10px;background:var(--line)}
+.row h3{margin:0 0 2px;font-size:17px}
+.row .meta{font-size:13.5px;color:var(--muted)}
+.row .controls{display:flex;flex-direction:column;gap:6px;min-width:190px}
+.row .controls select{padding:7px 9px;font-size:13.5px}
+.row .btns{display:flex;gap:6px;flex-wrap:wrap}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--line);margin-right:4px}
+.pill.pending{background:#fff4d6;color:#7a5800;border-color:#f1d27a}
+.pill.approved{background:var(--soft);color:var(--green-dark);border-color:var(--green)}
+.pill.rejected,.pill.sold{background:var(--line);color:var(--muted)}
+.pill.feat{background:var(--yellow);color:#1b1b00;border-color:var(--yellow)}
+@media (max-width:760px){.row{grid-template-columns:1fr}.row img,.row .noimg{width:100%;height:160px}.row .controls{min-width:0}}
+</style>
+</head>
+<body>
+<section>
+  <div class="wrap">
+    <div id="login" class="panel" style="max-width:420px;margin:40px auto" hidden>
+      <h1 style="font-size:26px;margin:0 0 6px">Admin login</h1>
+      <p class="sub">For Tanzania Car Dealers staff only.</p>
+      <form id="login-form"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required>
+        <div id="login-err" class="hint" style="color:var(--danger)"></div>
+        <button class="btn btn-main" style="width:100%;margin-top:14px">Log in</button></form>
+    </div>
+
+    <div id="app" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+        <h1 style="font-size:30px;margin:0">Admin</h1>
+        <div class="btns" style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" id="refresh">Refresh</button><button class="btn btn-ghost btn-sm" id="logout">Log out</button></div>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div id="flash"></div>
+      <div id="view"></div>
+    </div>
+  </div>
+</section>
+<script src="/config.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("");
+  var esc = TCD.esc;
+  var KEY = "tcd_admin_token", token = null;
+  try { token = localStorage.getItem(KEY); } catch (e) {}
+  var state = { tab: "pending", ads: [], dealers: [], editing: null };
+
+  function api(action, data){
+    return fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + (token || "") },
+      body: JSON.stringify(Object.assign({ action: action }, data || {})) })
+      .then(function(r){ return r.json().then(function(j){
+        if (r.status === 401 && action !== "login") { logout(); throw new Error("Please log in again."); }
+        if (!r.ok) throw new Error(j.error || "Something went wrong"); return j; }); });
+  }
+  function flash(text, kind){
+    var f = document.getElementById("flash");
+    f.innerHTML = text ? '<div class="notice ' + (kind || "ok") + '">' + esc(text) + '</div>' : "";
+    if (text) setTimeout(function(){ if (f.textContent === text) f.innerHTML = ""; }, 3500);
+  }
+  function setToken(t){ token = t; try { t ? localStorage.setItem(KEY, t) : localStorage.removeItem(KEY); } catch (e) {} }
+  function logout(){ setToken(null); document.getElementById("app").hidden = true; document.getElementById("login").hidden = false; }
+
+  document.getElementById("login-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var err = document.getElementById("login-err"); err.textContent = "";
+    api("login", { password: document.getElementById("pw").value })
+      .then(function(j){ setToken(j.token); start(); })
+      .catch(function(ex){ err.textContent = ex.message; });
+  });
+  document.getElementById("logout").addEventListener("click", logout);
+  document.getElementById("refresh").addEventListener("click", function(){ load().then(function(){ flash("Refreshed"); }); });
+
+  function load(){
+    return Promise.all([api("listAds"), api("listDealers")]).then(function(r){
+      state.ads = r[0].ads; state.dealers = r[1].dealers; render();
+    }).catch(function(ex){ flash(ex.message, "err"); });
+  }
+  function start(){
+    document.getElementById("login").hidden = true; document.getElementById("app").hidden = false;
+    document.getElementById("view").innerHTML = '<p class="empty">Loading…</p>';
+    load();
+  }
+
+  var TABS = [["pending", "Waiting for approval"], ["approved", "Live"], ["sold", "Sold"], ["rejected", "Rejected"], ["dealers", "Dealers"]];
+  function render(){
+    document.getElementById("tabs").innerHTML = TABS.map(function(t){
+      var n = t[0] === "dealers" ? state.dealers.length : state.ads.filter(function(a){ return a.status === t[0]; }).length;
+      return '<button data-tab="' + t[0] + '"' + (state.tab === t[0] ? ' class="on"' : "") + '>' + t[1] + '<span class="count">' + n + '</span></button>';
+    }).join("");
+    document.getElementById("view").innerHTML = state.tab === "dealers" ? dealersView() : adsView(state.tab);
+  }
+  document.getElementById("tabs").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-tab]"); if (!b) return;
+    state.tab = b.dataset.tab; state.editing = null; render();
+  });
+
+  function featuredLeft(ad){
+    if (!ad.featuredUntil) return 0;
+    var ms = new Date(ad.featuredUntil).getTime() - Date.now();
+    return ms > 0 ? Math.ceil(ms / 864e5) : 0;
+  }
+  function adsView(status){
+    var list = state.ads.filter(function(a){ return a.status === status; });
+    if (!list.length) return '<p class="empty">No ads here.</p>';
+    var dealerOpts = state.dealers.map(function(d){ return '<option value="' + d.id + '">' + esc(d.name) + '</option>'; }).join("");
+    return list.map(function(a){
+      var left = featuredLeft(a);
+      var title = TCD.title(a);
+      return '<div class="row" data-id="' + a.id + '">' +
+        (a.photos && a.photos[0] ? '<a href="' + esc(a.photos[0]) + '" target="_blank" rel="noopener"><img src="' + esc(a.photos[0]) + '" alt=""></a>' : '<div class="noimg"></div>') +
+        '<div><h3>' + esc(title) + '</h3><div class="price" style="font-size:17px">' + TCD.money(a.price) + '</div>' +
+          '<div style="margin:6px 0"><span class="pill ' + a.status + '">' + a.status.toUpperCase() + '</span>' + (left ? '<span class="pill feat">FEATURED · ' + left + ' days left</span>' : "") + '</div>' +
+          '<div class="meta">' + esc([TCD.fmt.format(a.km) + " km", a.fuel, a.gearbox, a.body, a.color, a.city].filter(Boolean).join(" · ")) + '</div>' +
+          '<div class="meta">Seller: <b>' + esc(a.sellerName) + '</b> · ' + (a.sellerType === "dealer" ? "Dealer" + (a.businessName ? " (" + esc(a.businessName) + ")" : "") : "Private") +
+            ' · <a target="_blank" rel="noopener" href="' + esc(TCD.waLink(a.sellerPhone, "Hello " + a.sellerName + ", this is Tanzania Car Dealers about your " + title + " ad (ID " + a.id + ").")) + '">WhatsApp +' + esc(a.sellerPhone) + '</a></div>' +
+          '<div class="meta">' + (a.photos || []).length + ' photos · Posted ' + new Date(a.createdAt).toLocaleString() + ' · ID ' + a.id + '</div>' +
+          (a.description ? '<div class="meta" style="margin-top:6px;white-space:pre-line;max-height:4.6em;overflow:hidden">' + esc(a.description) + '</div>' : "") +
+        '</div>' +
+        '<div class="controls"><div class="btns">' +
+          (a.status !== "approved" ? '<button class="btn btn-main btn-sm" data-act="status" data-v="approved">Approve</button>' : "") +
+          (a.status === "pending" ? '<button class="btn btn-ghost btn-sm" data-act="status" data-v="rejected">Reject</button>' : "") +
+          (a.status === "approved" ? '<button class="btn btn-ghost btn-sm" data-act="status" data-v="sold">Mark sold</button><a class="btn btn-ghost btn-sm" target="_blank" href="/car?id=' + a.id + '">View</a>' : "") +
+        '</div>' +
+        '<select data-act="feature"><option value="">' + (left ? "Featured: change…" : "Make featured…") + '</option><option value="7">Feature 7 days</option><option value="14">Feature 14 days</option><option value="30">Feature 30 days</option>' + (left ? '<option value="0">Remove featured</option>' : "") + '</select>' +
+        '<select data-act="dealer"><option value="">No dealer page</option>' + dealerOpts.replace('value="' + a.dealerId + '"', 'value="' + a.dealerId + '" selected') + '</select>' +
+        '<button class="btn btn-danger btn-sm" data-act="delete">Delete</button></div></div>';
+    }).join("");
+  }
+
+  function updateLocal(ad){
+    state.ads = state.ads.map(function(a){ return a.id === ad.id ? ad : a; }); render();
+  }
+  document.getElementById("view").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-act]"); if (!b) return;
+    var row = b.closest(".row"), dealerBtn = b.closest("[data-dealer]");
+    if (row && b.dataset.act === "status") {
+      b.disabled = true;
+      api("updateAd", { id: row.dataset.id, status: b.dataset.v }).then(function(j){ updateLocal(j.ad); flash("Ad " + b.dataset.v); })
+        .catch(function(ex){ flash(ex.message, "err"); b.disabled = false; });
+    }
+    if (row && b.dataset.act === "delete") {
+      if (!confirm("Delete this ad and its photos? This cannot be undone.")) return;
+      api("deleteAd", { id: row.dataset.id }).then(function(){ state.ads = state.ads.filter(function(a){ return a.id !== row.dataset.id; }); render(); flash("Ad deleted"); })
+        .catch(function(ex){ flash(ex.message, "err"); });
+    }
+    if (dealerBtn && b.dataset.act === "edit-dealer") { state.editing = dealerBtn.dataset.dealer; render(); }
+    if (dealerBtn && b.dataset.act === "delete-dealer") {
+      if (!confirm("Delete this dealer? Their ads stay on the site but lose the dealer link.")) return;
+      api("deleteDealer", { id: dealerBtn.dataset.dealer }).then(load).then(function(){ flash("Dealer deleted"); })
+        .catch(function(ex){ flash(ex.message, "err"); });
+    }
+    if (b.dataset.act === "new-dealer") { state.editing = "new"; render(); }
+    if (b.dataset.act === "cancel-dealer") { state.editing = null; render(); }
+  });
+  document.getElementById("view").addEventListener("change", function(e){
+    var s = e.target, row = s.closest(".row"); if (!row) return;
+    var data = { id: row.dataset.id };
+    if (s.dataset.act === "feature") { if (s.value === "") return; data.featureDays = Number(s.value); }
+    else if (s.dataset.act === "dealer") data.dealerId = s.value;
+    else return;
+    s.disabled = true;
+    api("updateAd", data).then(function(j){ updateLocal(j.ad); flash(s.dataset.act === "feature" ? "Featured updated" : "Dealer updated"); })
+      .catch(function(ex){ flash(ex.message, "err"); s.disabled = false; });
+  });
+
+  function dealerForm(d){
+    d = d || {};
+    return '<form id="dealer-form" class="panel" style="margin-bottom:18px"><h2 style="font-size:20px">' + (d.id ? "Edit dealer" : "New dealer") + '</h2><div class="form-grid">' +
+      '<div><label>Name *</label><input name="name" required value="' + esc(d.name) + '"></div>' +
+      '<div><label>WhatsApp number *</label><input name="whatsapp" required placeholder="0712 345 678" value="' + esc(d.whatsapp ? "+" + d.whatsapp : "") + '"></div>' +
+      '<div><label>City</label><input name="city" list="cities" value="' + esc(d.city) + '"></div>' +
+      '<div><label>Address</label><input name="address" value="' + esc(d.address) + '"></div>' +
+      '<div class="full"><label>About</label><textarea name="about">' + esc(d.about) + '</textarea></div>' +
+      '<div class="full"><label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" name="verified" style="width:auto"' + (d.verified ? " checked" : "") + '> Verified dealer (you have checked this business)</label></div>' +
+      '<div class="full" style="display:flex;gap:8px"><button class="btn btn-main">Save dealer</button><button type="button" class="btn btn-ghost" data-act="cancel-dealer">Cancel</button></div>' +
+      '</div></form>';
+  }
+  function dealersView(){
+    var editing = state.editing === "new" ? {} : state.dealers.filter(function(d){ return d.id === state.editing; })[0];
+    var counts = {};
+    state.ads.forEach(function(a){ if (a.dealerId) counts[a.dealerId] = (counts[a.dealerId] || 0) + 1; });
+    return (editing ? dealerForm(editing) : '<button class="btn btn-main" data-act="new-dealer" style="margin-bottom:16px">+ Add dealer</button>') +
+      (state.dealers.length ? state.dealers.map(function(d){
+        return '<div class="row" style="grid-template-columns:1fr auto" data-dealer="' + d.id + '"><div><h3>' + esc(d.name) + (d.verified ? ' <span class="verified">✓ Verified</span>' : "") + '</h3>' +
+          '<div class="meta">' + esc([d.address, d.city].filter(Boolean).join(", ")) + ' · WhatsApp +' + esc(d.whatsapp) + ' · ' + (counts[d.id] || 0) + ' ads</div></div>' +
+          '<div class="btns" style="display:flex;gap:6px;flex-wrap:wrap"><a class="btn btn-ghost btn-sm" target="_blank" href="/dealer?id=' + d.id + '">View page</a>' +
+          '<button class="btn btn-ghost btn-sm" data-act="edit-dealer">Edit</button><button class="btn btn-danger btn-sm" data-act="delete-dealer">Delete</button></div></div>';
+      }).join("") : '<p class="empty">No dealers yet. Add one, then link their ads to them from the Live tab.</p>') +
+      '<datalist id="cities"><option>Dar es Salaam</option><option>Arusha</option><option>Mwanza</option><option>Dodoma</option><option>Mbeya</option><option>Morogoro</option><option>Tanga</option><option>Moshi</option><option>Zanzibar</option></datalist>';
+  }
+  document.getElementById("view").addEventListener("submit", function(e){
+    if (e.target.id !== "dealer-form") return;
+    e.preventDefault();
+    var f = e.target, data = { id: state.editing === "new" ? "" : state.editing };
+    ["name", "whatsapp", "city", "address", "about"].forEach(function(k){ data[k] = f[k].value; });
+    data.verified = f.verified.checked;
+    api("saveDealer", data).then(function(){ state.editing = null; return load(); }).then(function(){ flash("Dealer saved"); })
+      .catch(function(ex){ flash(ex.message, "err"); });
+  });
+
+  token ? start() : logout();
+})();
+</script>
+</body>
+</html>

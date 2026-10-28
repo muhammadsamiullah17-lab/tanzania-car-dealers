@@ -1,0 +1,18 @@
+{
+  "name": "tanzania-car-dealers",
+  "version": "1.0.0",
+  "description": "Tanzania Car Dealers marketplace",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muhammadsamiullah17-lab/tanzania-car-dealers.git"
+  },
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/muhammadsamiullah17-lab/tanzania-car-dealers/issues"
+  },
+  "homepage": "https://github.com/muhammadsamiullah17-lab/tanzania-car-dealers#readme",
+  "dependencies": {
+    "@vercel/blob": "^2.8.2"
+  },
+  "private": true
+}
