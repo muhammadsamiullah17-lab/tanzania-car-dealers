@@ -117,6 +117,8 @@ footer a{color:var(--muted)}
   .nav nav{display:none}
   .nav .btn{padding:9px 12px;font-size:14px}
   .nav .hide-sm{display:none}
+  .nav .btn-login{padding:9px 10px}
+  .nav .btn-login .label{display:none}
   .filters{grid-template-columns:1fr 1fr}
   .filters input{grid-column:1/-1}
   .form-grid{grid-template-columns:1fr}

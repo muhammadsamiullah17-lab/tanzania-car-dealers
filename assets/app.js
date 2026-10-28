@@ -74,6 +74,17 @@
       });
   }
 
+  // Staff log in from the header; once a session is saved in this browser it reads "Admin panel".
+  function loginButton() {
+    if (/^\/admin/.test(location.pathname)) return "";
+    var loggedIn = false;
+    try { loggedIn = Boolean(localStorage.getItem("tcd_admin_token")); } catch (e) {}
+    var label = loggedIn ? "Admin panel" : "Log in";
+    return '<a class="btn btn-ghost btn-login" href="/admin" aria-label="' + label + '" title="' + label + '">' +
+      '<svg class="wa-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v3h16v-3c0-2.8-3.6-5-8-5z"/></svg>' +
+      '<span class="label">' + label + '</span></a>';
+  }
+
   function chrome(active) {
     var header = document.createElement("div");
     header.innerHTML =
@@ -84,7 +95,7 @@
         return '<a href="' + n[1] + '"' + (active === n[0] ? ' class="on"' : "") + '>' + n[2] + '</a>';
       }).join("") + '</nav>' +
       '<div class="actions"><a class="btn btn-main" href="/sell">Sell your car</a>' +
-      '<a class="btn btn-wa hide-sm" target="_blank" rel="noopener" href="' + esc(waLink(S.whatsapp, "Hello Tanzania Car Dealers, I am interested in buying a car.")) + '">' + WA_ICON + 'WhatsApp</a></div>' +
+      '<a class="btn btn-wa hide-sm" target="_blank" rel="noopener" href="' + esc(waLink(S.whatsapp, "Hello Tanzania Car Dealers, I am interested in buying a car.")) + '">' + WA_ICON + 'WhatsApp</a>' + loginButton() + '</div>' +
       '</div></header>';
     while (header.firstChild) document.body.insertBefore(header.lastChild, document.body.firstChild);
 
