@@ -15,6 +15,7 @@
     <div class="panel" style="max-width:440px;margin:24px auto">
       <h1 style="font-size:28px;margin:0 0 6px">Log in</h1>
       <p class="sub">Use your phone number, or your staff ID if you work with us.</p>
+      <div id="setup-note" class="notice ok" hidden><b>No admin account exists yet.</b> <a href="/admin">Create the admin account first</a>, then log in here.</div>
       <form id="form">
         <div style="margin-bottom:14px"><label for="identifier">Phone number or staff ID</label><input id="identifier" required autocomplete="username" autocapitalize="none" placeholder="0712 345 678"></div>
         <div style="margin-bottom:6px"><label for="password">Password</label><input id="password" type="password" required autocomplete="current-password"></div>
@@ -33,6 +34,7 @@
   TCD.chrome("");
   var next = new URLSearchParams(location.search).get("next");
   if (next && !/^\/[a-z]/.test(next)) next = null; // only local paths
+  TCD.api("admin", "status").then(function(s){ document.getElementById("setup-note").hidden = !s.needsSetup; }).catch(function(){});
   document.getElementById("forgot").href = TCD.waLink(window.SITE.whatsapp, "Hello, I forgot my Tanzania Car Dealers password. My phone number is ");
   document.getElementById("form").addEventListener("submit", function(e){
     e.preventDefault();
