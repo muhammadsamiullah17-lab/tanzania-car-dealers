@@ -184,6 +184,7 @@
     var noticeRow = function(n){ return row("notice-row", "140px 1fr 1.6fr auto", '<input type="date" data-n="date" value="' + esc(n.date || new Date().toISOString().slice(0, 10)) + '"><input data-n="title" maxlength="120" placeholder="Title, e.g. New Prados arriving" value="' + esc(n.title || "") + '"><input data-n="text" maxlength="1000" placeholder="More details (optional)" value="' + esc(n.text || "") + '"><input type="hidden" data-n="id" value="' + esc(n.id || "") + '"><button type="button" class="btn btn-ghost btn-sm" data-act="row-del">✕</button>'); };
     var delRow = function(d){ return row("del-row", "1.2fr 1fr 1fr auto", '<input data-d="city" maxlength="40" placeholder="City" value="' + esc(d.city || "") + '"><input data-d="price" type="number" min="0" step="10000" placeholder="Price TZS" value="' + esc(d.price == null ? "" : d.price) + '"><input data-d="days" maxlength="40" placeholder="e.g. 2–3 days" value="' + esc(d.days || "") + '"><button type="button" class="btn btn-ghost btn-sm" data-act="row-del">✕</button>'); };
     siteView.noticeRow = noticeRow; siteView.delRow = delRow;
+    var jc = s.japanCompany || {};
     return '<form id="site-form" class="panel" style="max-width:860px"><h2 style="font-size:20px">Site settings</h2>' +
       (s.updatedAt ? '<p class="hint">Last changed ' + new Date(s.updatedAt).toLocaleString() + ' by ' + esc(s.updatedBy) + '.</p>' : "") +
       '<h3 style="margin:18px 0 6px">Who can sell</h3>' +
@@ -198,8 +199,14 @@
       '<h3 style="margin:22px 0 6px">Delivery prices from Dar es Salaam</h3><p class="hint" style="margin:0 0 8px">Shown on every car page as "Delivery to your city". 0 = free. ⚠️ The starting prices are examples: please set your real prices.</p>' +
       '<div id="del-rows">' + s.delivery.map(delRow).join("") + '</div><button type="button" class="btn btn-ghost btn-sm" data-act="add-del">+ Add city</button>' +
       '<label style="margin-top:12px">Note under the delivery price</label><input name="deliveryNote" maxlength="300" value="' + esc(s.deliveryNote || "") + '">' +
+      '<h3 style="margin:22px 0 6px">🇯🇵 Our company in Japan</h3><p class="hint" style="margin:0 0 8px">Every Japan order, bid, offer and "Find me a car" goes to this company directly, never to a dealer in Tanzania. Shown on the From Japan pages. Until a WhatsApp number is set, the main number is used.</p>' +
+      '<div class="grid2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">' +
+      JC_FIELDS.map(function(f){ return '<div><label>' + f[1] + '</label><input name="jc_' + f[0] + '" maxlength="' + f[2] + '" placeholder="' + esc(f[3] || "") + '" value="' + esc(jc[f[0]] || "") + '"></div>'; }).join("") + '</div>' +
+      '<label style="margin-top:10px">About the company / specification</label><textarea name="jc_about" maxlength="1000" rows="4" placeholder="e.g. Exporter of used Japanese cars since 2010, member of JUMVEA, buys from USS, TAA and HAA auctions, inspection before shipping.">' + esc(jc.about || "") + '</textarea>' +
       '<button class="btn btn-main" style="margin-top:18px">Save site settings</button></form>';
   }
+  var JC_FIELDS = [["name", "Company name", 120, "e.g. ABC Trading Co., Ltd."], ["licence", "Licence / registration numbers", 200, "e.g. Kobutsusho No. ..."], ["address", "Address in Japan", 300, ""], ["contactPerson", "Contact person", 80, ""],
+    ["phone", "Phone", 40, "+81 ..."], ["whatsapp", "WhatsApp (international)", 20, "+81 90 1234 5678"], ["email", "Email", 120, ""], ["website", "Website", 200, "https://"]];
   $("view").addEventListener("click", function(e){
     var b = e.target.closest("button[data-act]"); if (!b || !b.closest("#site-form")) return;
     if (b.dataset.act === "row-del") b.parentNode.remove();
@@ -219,6 +226,7 @@
       notices: Array.from(fm.querySelectorAll(".notice-row")).map(function(r){ var o = {}; r.querySelectorAll("[data-n]").forEach(function(i){ o[i.dataset.n] = i.value; }); return o; }),
       delivery: Array.from(fm.querySelectorAll(".del-row")).map(function(r){ var o = {}; r.querySelectorAll("[data-d]").forEach(function(i){ o[i.dataset.d] = i.value; }); return o; }),
       deliveryNote: fm.elements.deliveryNote.value,
+      japanCompany: JC_FIELDS.concat([["about"]]).reduce(function(o, f){ o[f[0]] = fm.elements["jc_" + f[0]].value; return o; }, {}),
       keepBanners: Array.from(fm.querySelectorAll("[data-keep-banner]")).filter(function(c){ return c.checked; }).map(function(c){ return c.dataset.keepBanner; }),
       newBanners: siteNewBanners,
     };

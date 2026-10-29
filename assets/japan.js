@@ -68,5 +68,25 @@
       ". TRA may value the car from its own database; TRA's assessment is final. Check with the official TRA calculator before you pay.";
   }
 
-  window.TCDJapan = { landed: landed, breakdownTable: breakdownTable, ratesNote: ratesNote, TRA_URL: "https://www.tra.go.tz/" };
+  // Japan orders always go to our own company in Japan (Admin › Site settings), falling back to the main number.
+  function contact(jc) {
+    jc = jc || {};
+    return { whatsapp: jc.whatsapp || window.SITE.whatsapp, name: jc.name || window.SITE.name };
+  }
+  function companyBox(jc) {
+    jc = jc || {};
+    var esc = TCD.esc, c = contact(jc);
+    if (!jc.name) return '<div class="panel japan-co"><b>🇯🇵 Ordered directly from our team</b><p class="hint" style="margin:6px 0 10px">Japan orders are handled by Tanzania Car Dealers ourselves, not by a dealer in Tanzania.</p>' +
+      '<a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="' + esc(TCD.waLink(c.whatsapp, "Hello, I want to order a car from Japan.")) + '">' + TCD.WA_ICON + 'WhatsApp our Japan team</a></div>';
+    var rows = [["Licence", jc.licence], ["Address", jc.address], ["Contact", jc.contactPerson], ["Phone", jc.phone], ["Email", jc.email]].filter(function (r) { return r[1]; });
+    return '<div class="panel japan-co"><div class="hint" style="margin:0;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:12px">Imported directly by our company in Japan</div>' +
+      '<h3 style="margin:6px 0 4px;font-size:19px">🇯🇵 ' + esc(jc.name) + '</h3>' + (jc.about ? '<p class="hint" style="margin:0 0 8px;white-space:pre-line">' + esc(jc.about) + '</p>' : "") +
+      (rows.length ? '<table class="spec-table" style="font-size:14px">' + rows.map(function (r) { return '<tr><td>' + r[0] + '</td><td style="white-space:pre-line">' + esc(r[1]) + '</td></tr>'; }).join("") + '</table>' : "") +
+      '<div class="btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="' + esc(TCD.waLink(c.whatsapp, "Hello " + jc.name + ", I want to order a car from Japan.")) + '">' + TCD.WA_ICON + 'WhatsApp Japan</a>' +
+      (jc.phone ? '<a class="btn btn-ghost btn-sm" href="tel:' + esc(jc.phone.replace(/[^\d+]/g, "")) + '">📞 Call</a>' : "") +
+      (jc.email ? '<a class="btn btn-ghost btn-sm" href="mailto:' + esc(jc.email) + '">✉ Email</a>' : "") +
+      (jc.website ? '<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="' + esc(jc.website) + '">Website</a>' : "") + '</div></div>';
+  }
+
+  window.TCDJapan = { landed: landed, breakdownTable: breakdownTable, ratesNote: ratesNote, TRA_URL: "https://www.tra.go.tz/", contact: contact, companyBox: companyBox };
 })();

@@ -22,7 +22,7 @@
   var esc = TCD.esc, root = document.getElementById("root");
   var id = new URLSearchParams(location.search).get("id") || "";
 
-  function show(c, s, delivery, note){
+  function show(c, s, delivery, note, jc){
     var title = c.year + " " + c.make + " " + c.model + (c.grade ? " " + c.grade : "");
     document.title = title + " from Japan · Tanzania Car Dealers";
     var est = TCDJapan.landed(c, s), photos = c.photos || [];
@@ -49,8 +49,8 @@
         '<div class="landed" style="margin:12px 0">Estimated total in Dar es Salaam<br><b style="font-size:26px">' + TCD.money(est.total) + (est.missing ? "+" : "") + '</b></div>' +
         (auction ? '<p class="seller">⏱ Auction closes ' + new Date(c.auctionEnds).toLocaleString() + '. The final price can go up.</p>' : "") +
         (c.status === "sold" ? '<p class="notice err">This car is sold. <a href="/japan#request">Ask us to find a similar one.</a></p>'
-          : '<a class="btn btn-wa" style="width:100%" target="_blank" rel="noopener" href="' + esc(TCD.waLink(window.SITE.whatsapp, msg)) + '">' + TCD.WA_ICON + (auction ? "Ask us to bid for you" : c.saleType === "offer" ? "Make an offer on WhatsApp" : c.status === "coming" ? "Reserve this car on WhatsApp" : "Order this car on WhatsApp") + '</a>') +
-      '</div>' + TCD.deliveryBox(delivery, note, "Dar es Salaam (after clearing)") + '<div class="panel"><b>How importing works</b><ol class="tips"><li>You confirm the car with us on WhatsApp.</li><li>We buy it in Japan (or bid at the auction) after your deposit.</li><li>It ships to Dar es Salaam, usually in 4 to 6 weeks.</li><li>We clear it with TRA and register it, then you collect it.</li></ol></div></aside></div>';
+          : '<a class="btn btn-wa" style="width:100%" target="_blank" rel="noopener" href="' + esc(TCD.waLink(TCDJapan.contact(jc).whatsapp, msg)) + '">' + TCD.WA_ICON + (auction ? "Ask us to bid for you" : c.saleType === "offer" ? "Make an offer on WhatsApp" : c.status === "coming" ? "Reserve this car on WhatsApp" : "Order this car on WhatsApp") + '</a>') +
+      '</div>' + TCDJapan.companyBox(jc) + TCD.deliveryBox(delivery, note, "Dar es Salaam (after clearing)") + '<div class="panel"><b>How importing works</b><ol class="tips"><li>You confirm the car with us on WhatsApp.</li><li>We buy it in Japan (or bid at the auction) after your deposit.</li><li>It ships to Dar es Salaam, usually in 4 to 6 weeks.</li><li>We clear it with TRA and register it, then you collect it.</li></ol></div></aside></div>';
     TCD.bindDelivery(root, delivery);
     root.querySelectorAll(".thumbs img").forEach(function(img){
       img.addEventListener("click", function(){
@@ -61,7 +61,7 @@
   }
 
   fetch("/api/japan?id=" + encodeURIComponent(id)).then(function(r){ if (!r.ok) throw 0; return r.json(); })
-    .then(function(j){ show(j.car, j.settings, j.delivery, j.deliveryNote); })
+    .then(function(j){ show(j.car, j.settings, j.delivery, j.deliveryNote, j.japanCompany); })
     .catch(function(){ root.innerHTML = '<h2>Car not found</h2><p class="sub">It may have been sold or removed.</p><a class="btn btn-ghost" href="/japan">See cars from Japan</a>'; });
 })();
 </script>

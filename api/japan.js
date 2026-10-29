@@ -14,18 +14,18 @@ function text(v, max) {
 async function get(req, res) {
   const id = req.query.id;
   const [settings, site] = await Promise.all([getSettings(), getSite()]);
-  const { delivery, deliveryNote } = publicSite(site);
+  const { delivery, deliveryNote, japanCompany } = publicSite(site);
   res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
   if (id) {
     const c = await jcars.get(id);
     if (!c || c.status === "hidden") return send(res, 404, { error: "Not found" });
-    return send(res, 200, { car: publicJcar(c), settings, delivery, deliveryNote });
+    return send(res, 200, { car: publicJcar(c), settings, delivery, deliveryNote, japanCompany });
   }
   const order = { available: 0, coming: 1, reserved: 2, sold: 3 };
   const cars = (await jcars.all()).filter((c) => c.status !== "hidden")
     .sort((a, b) => (order[a.status] - order[b.status]) || (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map(publicJcar);
-  send(res, 200, { cars, settings, delivery, deliveryNote });
+  send(res, 200, { cars, settings, delivery, deliveryNote, japanCompany });
 }
 
 async function post(req, res) {

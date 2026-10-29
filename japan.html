@@ -14,10 +14,12 @@
 <section class="hero" style="padding:48px 0 40px">
   <div class="wrap">
     <h1>Import your car from <span>Japan</span></h1>
-    <p>Cars from Japanese auctions and stock, with an estimated total cost in Dar es Salaam: price, shipping, insurance and TRA taxes. We handle buying, shipping and clearing.</p>
+    <p>Order directly from our own company in Japan: cars from Japanese auctions and stock, with an estimated total cost in Dar es Salaam (price, shipping, insurance and TRA taxes). We handle buying, shipping and clearing.</p>
     <div class="cta"><a class="btn btn-main" href="#stock">See cars</a><a class="btn btn-ghost" href="#calc">Import cost calculator</a><a class="btn btn-ghost" href="#request">Find me a car</a></div>
   </div>
 </section>
+
+<section id="company" style="padding-bottom:0"><div class="wrap" id="company-box"></div></section>
 
 <section id="stock">
   <div class="wrap">
@@ -64,7 +66,7 @@
   <div class="wrap">
     <div class="panel">
       <h2>Find me a car from Japan</h2>
-      <p class="sub">Tell us what you want and your budget. Our team searches Japanese auctions and sends you options on WhatsApp.</p>
+      <p class="sub">Tell us what you want and your budget. Our own company in Japan searches the auctions and sends you options on WhatsApp.</p>
       <div id="r-gate"></div>
       <form id="r-form" hidden>
         <div class="form-grid">
@@ -91,7 +93,7 @@
   var esc = TCD.esc, grid = document.getElementById("grid"), empty = document.getElementById("empty");
   var q = document.getElementById("q"), fMake = document.getElementById("f-make"), fBody = document.getElementById("f-body"),
       fStatus = document.getElementById("f-status"), fBudget = document.getElementById("f-budget"), fCond = document.getElementById("f-cond");
-  var data = { cars: [], settings: null };
+  var data = { cars: [], settings: null }, jcContact = { whatsapp: window.SITE.whatsapp };
 
   function timeLeft(iso){
     var ms = new Date(iso).getTime() - Date.now();
@@ -145,6 +147,9 @@
 
   fetch("/api/japan").then(function(r){ return r.json(); }).then(function(j){
     data = j;
+    document.getElementById("company-box").innerHTML = TCDJapan.companyBox(j.japanCompany);
+    jcContact = TCDJapan.contact(j.japanCompany);
+    var wa = document.getElementById("r-wa"); if (wa) wa.href = TCD.waLink(jcContact.whatsapp, "Hello, I want to import a car from Japan. I am looking for: ");
     fill(fMake, j.cars.map(function(c){ return c.make; }));
     fill(fBody, j.cars.map(function(c){ return c.body; }));
     [q, fMake, fBody, fStatus, fBudget, fCond].forEach(function(el){ el.addEventListener("input", render); });
@@ -156,7 +161,7 @@
   var s = TCD.session.get(), gate = document.getElementById("r-gate"), form = document.getElementById("r-form");
   if (s.kind === "m" && s.token) form.hidden = false;
   else gate.innerHTML = '<p>Create a free account or log in so we can contact you with options.</p><div class="btns" style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-main" href="/signup">Create an account</a><a class="btn btn-ghost" href="/login?next=/japan%23request">Log in</a>' +
-    '<a class="btn btn-wa" target="_blank" rel="noopener" href="' + esc(TCD.waLink(window.SITE.whatsapp, "Hello, I want to import a car from Japan. I am looking for: ")) + '">' + TCD.WA_ICON + 'Or ask on WhatsApp</a></div>';
+    '<a class="btn btn-wa" id="r-wa" target="_blank" rel="noopener" href="' + esc(TCD.waLink(jcContact.whatsapp, "Hello, I want to import a car from Japan. I am looking for: ")) + '">' + TCD.WA_ICON + 'Or ask on WhatsApp</a></div>';
   form.addEventListener("submit", function(e){
     e.preventDefault();
     var btn = document.getElementById("r-btn"), msg = document.getElementById("r-msg");

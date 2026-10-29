@@ -91,7 +91,7 @@
     "Agree the price, pay safely, transfer ownership with TRA, and get it delivered to your city.": "Kubaliana bei, lipa kwa usalama, hamisha umiliki TRA, na liletewe mjini kwako.",
     "Contact the seller directly": "Wasiliana na muuzaji moja kwa moja", "WhatsApp or call the dealer from any car page. Fast and simple.": "Tuma WhatsApp au piga simu kwa muuzaji kutoka ukurasa wa gari. Haraka na rahisi.",
     "Let us manage it for you": "Tuachie tukusimamie", "We check the car and papers, book an inspection, negotiate the price, and handle safe payment and transfer.": "Tunakagua gari na nyaraka, tunapanga ukaguzi, tunajadiliana bei, na tunasimamia malipo salama na uhamisho.",
-    "Choose a car": "Chagua gari", "Auction and stock cars, updated by our team": "Magari ya mnada na ya stoo, yanasasishwa na timu yetu",
+    "Choose a car": "Chagua gari", "Auction and stock cars, updated by our team": "Magari ya mnada na ya stoo, yanasasishwa na timu yetu", "Ordered directly from our own company in Japan": "Yanaagizwa moja kwa moja kutoka kampuni yetu Japan",
     "Landed cost with TRA duty, excise and VAT": "Gharama kamili pamoja na ushuru wa TRA na VAT", "Shipping to Dar es Salaam and clearing": "Usafirishaji hadi Dar es Salaam na uondoshaji bandarini",
     "Delivery to your city in Tanzania": "Kuletewa mjini kwako Tanzania", "Are you a car dealer?": "Je, wewe ni muuzaji wa magari?",
     "Register your showroom, get verified, and list all your cars for free with your own dealer page.": "Sajili showroom yako, thibitishwa, na weka magari yako yote bure ukiwa na ukurasa wako.",
