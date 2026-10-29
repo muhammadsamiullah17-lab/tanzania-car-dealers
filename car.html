@@ -13,7 +13,13 @@
 <section>
   <div class="wrap" id="root"><p class="empty">Loading…</p></div>
 </section>
-
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lb-close" aria-label="Close">✕</button>
+  <button class="lb-prev" aria-label="Previous photo">‹</button>
+  <img alt="">
+  <button class="lb-next" aria-label="Next photo">›</button>
+  <div class="lb-count"></div>
+</div>
 <script src="/config.js"></script>
 <script src="/cars.js"></script>
 <script src="/assets/app.js"></script>
@@ -27,49 +33,89 @@
     root.innerHTML = '<h2>Car not found</h2><p class="sub">This car may have been sold or removed.</p><a class="btn btn-ghost" href="/#stock">See all cars</a>';
   }
 
-  function show(car, dealer){
+  // Full-screen photo viewer with next/previous, arrow keys and swipe.
+  var lb = document.getElementById("lightbox"), lbImg = lb.querySelector("img"), lbPhotos = [], lbIndex = 0;
+  function lbShow(i){ lbIndex = (i + lbPhotos.length) % lbPhotos.length; lbImg.src = lbPhotos[lbIndex]; lb.querySelector(".lb-count").textContent = (lbIndex + 1) + " / " + lbPhotos.length; }
+  function lbOpen(photos, i){ lbPhotos = photos; lb.hidden = false; document.body.style.overflow = "hidden"; lbShow(i); }
+  function lbClose(){ lb.hidden = true; document.body.style.overflow = ""; }
+  lb.querySelector(".lb-close").onclick = lbClose;
+  lb.querySelector(".lb-prev").onclick = function(){ lbShow(lbIndex - 1); };
+  lb.querySelector(".lb-next").onclick = function(){ lbShow(lbIndex + 1); };
+  lb.addEventListener("click", function(e){ if (e.target === lb) lbClose(); });
+  document.addEventListener("keydown", function(e){
+    if (lb.hidden) return;
+    if (e.key === "Escape") lbClose(); if (e.key === "ArrowLeft") lbShow(lbIndex - 1); if (e.key === "ArrowRight") lbShow(lbIndex + 1);
+  });
+  var touchX = null;
+  lb.addEventListener("touchstart", function(e){ touchX = e.touches[0].clientX; });
+  lb.addEventListener("touchend", function(e){ if (touchX == null) return; var dx = e.changedTouches[0].clientX - touchX; if (Math.abs(dx) > 40) lbShow(lbIndex + (dx < 0 ? 1 : -1)); touchX = null; });
+
+  function share(car, t){
+    var url = location.href, text = t + " for " + TCD.money(car.price) + " on Tanzania Car Dealers";
+    if (navigator.share) return navigator.share({ title: t, text: text, url: url }).catch(function(){});
+    window.open("https://wa.me/?text=" + encodeURIComponent(text + " " + url), "_blank", "noopener");
+  }
+
+  function similar(car, market){
+    var list = market.cars.filter(function(c){ return c.id !== car.id && (c.make === car.make || c.body === car.body) && Math.abs(c.price - car.price) <= car.price * 0.4; })
+      .sort(function(a, b){ return (b.make === car.make) - (a.make === car.make) || Math.abs(a.price - car.price) - Math.abs(b.price - car.price); }).slice(0, 4);
+    return list.length ? '<h2 style="margin-top:36px">Similar cars</h2><div class="grid">' + list.map(function(c){ return TCD.card(c, market.dealersById); }).join("") + '</div>' : "";
+  }
+
+  function show(car, dealer, market){
     var dealersById = {}; if (dealer) dealersById[dealer.id] = dealer;
     var s = TCD.sellerLabel(car, dealersById);
     var t = TCD.title(car);
     document.title = t + " · Tanzania Car Dealers";
     var photos = car.photos || [];
     var sold = car.status === "sold";
+    var specs = [["Make", car.make], ["Model", car.model], ["Year", car.year], ["Mileage", TCD.fmt.format(car.km) + " km"], ["Engine", car.cc ? car.cc + " cc" : ""],
+      ["Fuel", car.fuel], ["Gearbox", car.gearbox], ["Drive", car.drive], ["Body type", car.body], ["Colour", car.color], ["Assembly", car.assembly],
+      ["Registered in", car.registeredIn], ["Previous owners", car.owners == null ? "" : car.owners === 0 ? "None (fresh import)" : car.owners >= 4 ? "4 or more" : car.owners],
+      ["Location", car.city], ["Ad ID", car.id]].filter(function(r){ return r[1] !== "" && r[1] != null; });
+    var reduced = car.priceDroppedAt && Date.now() - new Date(car.priceDroppedAt).getTime() < 14 * 864e5;
     root.innerHTML =
       '<div class="crumbs"><a href="/">Home</a> › <a href="/#stock">Cars</a> › ' + esc(t) + '</div>' +
       '<div class="detail"><div class="gallery">' +
-        '<div class="main" id="main">' + (photos.length ? '<img src="' + esc(photos[0]) + '" alt="' + esc(t) + '">' : TCD.carSvg(car.swatch)) + '</div>' +
+        '<div class="main zoomable" id="main" title="Tap to enlarge">' + (photos.length ? '<img src="' + esc(photos[0]) + '" alt="' + esc(t) + '"><span class="zoom-hint">⤢ ' + photos.length + (photos.length === 1 ? " photo" : " photos") + '</span>' : TCD.carSvg(car.swatch)) + '</div>' +
         (photos.length > 1 ? '<div class="thumbs">' + photos.map(function(p, i){ return '<img src="' + esc(p) + '" data-i="' + i + '"' + (i ? "" : ' class="on"') + ' alt="Photo ' + (i + 1) + '">'; }).join("") + '</div>' : "") +
         '<div class="panel" style="margin-top:18px"><h2 style="font-size:20px">Details</h2><table class="spec-table">' +
-          [["Make", car.make], ["Model", car.model], ["Year", car.year], ["Mileage", TCD.fmt.format(car.km) + " km"], ["Fuel", car.fuel],
-           ["Gearbox", car.gearbox], ["Body type", car.body], ["Colour", car.color || "–"], ["Location", car.city], ["Ad ID", car.id]]
-            .map(function(r){ return '<tr><td>' + r[0] + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join("") +
-        '</table>' + (car.description ? '<h2 style="font-size:20px;margin-top:20px">Description</h2><p style="white-space:pre-line;margin:0">' + esc(car.description) + '</p>' : "") + '</div>' +
+          specs.map(function(r){ return '<tr><td>' + r[0] + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join("") + '</table>' +
+        ((car.features || []).length ? '<h2 style="font-size:20px;margin-top:20px">Features</h2><ul class="feature-list">' + car.features.map(function(x){ return '<li>✓ ' + esc(x) + '</li>'; }).join("") + '</ul>' : "") +
+        (car.description ? '<h2 style="font-size:20px;margin-top:20px">Description</h2><p style="white-space:pre-line;margin:0">' + esc(car.description) + '</p>' : "") + '</div>' +
       '</div><aside class="side">' +
-        '<div class="panel">' + (car.featured ? '<span class="verified" style="background:var(--yellow);color:#1b1b00;border-color:var(--yellow)">FEATURED</span>' : "") +
+        '<div class="panel">' + (car.featured ? '<span class="verified" style="background:var(--yellow);color:#1b1b00;border-color:var(--yellow)">FEATURED</span> ' : "") +
+          (reduced && !sold ? '<span class="verified" style="border-color:var(--danger);color:var(--danger);background:transparent">PRICE REDUCED</span>' : "") +
           '<h1 style="font-size:26px;margin:8px 0 4px">' + esc(t) + '</h1>' +
           '<div class="price" style="font-size:26px">' + (sold ? "SOLD" : TCD.money(car.price)) + '</div>' +
           '<p class="seller" style="margin:12px 0 16px">Sold by ' + (s.href ? '<a href="' + s.href + '">' + esc(s.name) + '</a>' : esc(s.name)) + (s.verified ? ' <span class="verified">✓ Verified</span>' : "") + '</p>' +
-          (sold ? "" : '<a class="btn btn-wa" style="width:100%" target="_blank" rel="noopener" href="' + esc(TCD.waLink(s.phone, TCD.enquiry(car))) + '">' + TCD.WA_ICON + 'Chat with seller on WhatsApp</a>') +
+          (sold ? "" : '<a class="btn btn-wa" style="width:100%" target="_blank" rel="noopener" href="' + esc(TCD.waLink(s.phone, TCD.enquiry(car))) + '">' + TCD.WA_ICON + 'Chat with seller on WhatsApp</a>' +
+            '<div class="btns" style="display:flex;gap:8px;margin-top:8px"><a class="btn btn-ghost" style="flex:1" href="tel:+' + esc(s.phone) + '">📞 Call</a><button class="btn btn-ghost" style="flex:1" id="share">↗ Share</button></div>') +
         '</div>' +
         '<div class="panel"><b>Buy safely</b><ul class="tips"><li>See the car in person before paying.</li><li>Check the registration card matches the seller.</li><li>Never send a deposit to someone you have not met.</li><li>Ask us for an inspection if you are unsure.</li></ul>' +
           '<a class="btn btn-ghost btn-sm" style="margin-top:12px" target="_blank" rel="noopener" href="' + esc(TCD.waLink(window.SITE.whatsapp, "Hello, I want to report or ask about ad " + car.id + " (" + t + ").")) + '">Report this ad</a></div>' +
-      '</aside></div>';
+      '</aside></div>' + similar(car, market);
+    var current = 0;
+    if (photos.length) document.getElementById("main").addEventListener("click", function(){ lbOpen(photos, current); });
     root.querySelectorAll(".thumbs img").forEach(function(img){
       img.addEventListener("click", function(){
-        document.getElementById("main").innerHTML = '<img src="' + esc(photos[img.dataset.i]) + '" alt="' + esc(t) + '">';
+        current = Number(img.dataset.i);
+        document.getElementById("main").querySelector("img").src = photos[current];
         root.querySelectorAll(".thumbs img").forEach(function(o){ o.classList.toggle("on", o === img); });
       });
     });
+    var sb = document.getElementById("share"); if (sb) sb.addEventListener("click", function(){ share(car, t); });
   }
 
-  if (/^h\d+$/.test(id)) {
-    var car = TCD.houseCars().filter(function(c){ return c.id === id; })[0];
-    return car ? show(car, null) : notFound();
-  }
-  fetch("/api/listings?id=" + encodeURIComponent(id))
-    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
-    .then(function(d){ show(d.ad, d.dealer); })
-    .catch(notFound);
+  TCD.loadMarket().then(function(market){
+    if (/^h\d+$/.test(id)) {
+      var car = market.cars.filter(function(c){ return c.id === id; })[0];
+      return car ? show(car, null, market) : notFound();
+    }
+    return fetch("/api/listings?id=" + encodeURIComponent(id))
+      .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+      .then(function(d){ show(d.ad, d.dealer, market); });
+  }).catch(notFound);
 })();
 </script>
 </body>

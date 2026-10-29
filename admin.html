@@ -451,7 +451,7 @@
       return '<div class="row" data-id="' + a.id + '">' +
         (a.photos && a.photos[0] ? '<a href="' + esc(a.photos[0]) + '" target="_blank" rel="noopener"><img src="' + esc(a.photos[0]) + '" alt=""></a>' : '<div class="noimg"></div>') +
         '<div><h3>' + esc(title) + '</h3><div class="price" style="font-size:17px">' + TCD.money(a.price) + '</div>' +
-          '<div style="margin:6px 0"><span class="pill ' + a.status + '">' + a.status.toUpperCase() + '</span>' + (left ? '<span class="pill feat">FEATURED · ' + left + ' days left</span>' : "") + '</div>' +
+          '<div style="margin:6px 0"><span class="pill ' + a.status + '">' + a.status.toUpperCase() + '</span>' + (a.editedAt && a.status === "pending" ? '<span class="pill feat">EDITED BY SELLER · CHECK CHANGES</span>' : "") + (left ? '<span class="pill feat">FEATURED · ' + left + ' days left</span>' : "") + '</div>' +
           '<div class="meta">' + esc([TCD.fmt.format(a.km) + " km", a.fuel, a.gearbox, a.body, a.color, a.city].filter(Boolean).join(" · ")) + '</div>' +
           '<div class="meta">Seller: <b>' + esc(a.sellerName) + '</b> · ' + (a.sellerType === "dealer" ? "Dealer" + (a.businessName ? " (" + esc(a.businessName) + ")" : "") : "Private") +
             ' · <a target="_blank" rel="noopener" href="' + esc(TCD.waLink(a.sellerPhone, "Hello " + a.sellerName + ", this is Tanzania Car Dealers about your " + title + " ad (ID " + a.id + ").")) + '">WhatsApp +' + esc(a.sellerPhone) + '</a></div>' +

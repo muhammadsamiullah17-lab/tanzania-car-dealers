@@ -121,9 +121,16 @@
     return '<div class="panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="font-size:20px;margin:0">My cars</h2>' +
       (state.user.status === "verified" ? '<a class="btn btn-main btn-sm" href="/sell">+ Post a car</a>' : "") + '</div>' +
       (state.ads.length ? state.ads.map(function(a){
-        var label = { pending: "Waiting for approval", approved: "Live", sold: "Sold", rejected: "Not approved" }[a.status] || a.status;
-        return '<div class="myad"><div><b>' + esc(TCD.title(a)) + '</b><div class="hint">' + TCD.money(a.price) + ' · posted ' + new Date(a.createdAt).toLocaleDateString() + '</div></div>' +
-          '<div><span class="pill ' + a.status + '">' + label + '</span>' + (a.status === "approved" ? ' <a class="btn btn-ghost btn-sm" href="/car?id=' + a.id + '">View</a>' : "") + '</div></div>';
+        var label = { pending: a.editedAt ? "Changes waiting for approval" : "Waiting for approval", approved: "Live", sold: "Sold", rejected: "Not approved" }[a.status] || a.status;
+        var live = a.status !== "sold";
+        return '<div class="myad" data-ad="' + a.id + '"><div style="display:flex;gap:12px;align-items:center">' +
+          (a.photos && a.photos[0] ? '<img src="' + esc(a.photos[0]) + '" alt="" style="width:72px;height:54px;object-fit:cover;border-radius:8px">' : "") +
+          '<div><b>' + esc(TCD.title(a)) + '</b><div class="hint" style="margin:2px 0 0">' + TCD.money(a.price) + ' · posted ' + new Date(a.createdAt).toLocaleDateString() + '</div>' +
+          '<span class="pill ' + a.status + '">' + label + '</span></div></div>' +
+          '<div class="btns" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' +
+            (a.status === "approved" ? '<a class="btn btn-ghost btn-sm" href="/car?id=' + a.id + '">View</a>' : "") +
+            (live ? '<a class="btn btn-ghost btn-sm" href="/sell?edit=' + a.id + '">Edit</a><button class="btn btn-ghost btn-sm" data-ad-act="price">Change price</button><button class="btn btn-ghost btn-sm" data-ad-act="sold">Mark sold</button>' : "") +
+            '<button class="btn btn-danger btn-sm" data-ad-act="delete">Delete</button></div></div>';
       }).join("") : '<p class="empty" style="padding:10px 0">No cars yet.</p>') + '</div>';
   }
 
@@ -182,6 +189,25 @@
         .then(function(j){ state.user = j.user; render(); flash("Document uploaded."); })
         .catch(function(ex){ render(); flash(ex.message, "err"); });
     });
+  });
+
+  root.addEventListener("click", function(e){
+    var b = e.target.closest("[data-ad-act]"); if (!b) return;
+    var id = b.closest("[data-ad]").dataset.ad, ad = state.ads.filter(function(a){ return a.id === id; })[0];
+    function done(text){ return call("myAds").then(function(r){ state.ads = r.ads; render(); flash(text); }); }
+    if (b.dataset.adAct === "price") {
+      var v = prompt("New price in TZS for your " + TCD.title(ad) + " (now " + TCD.money(ad.price) + "):", ad.price);
+      if (!v) return;
+      call("setMyAdPrice", { id: id, price: Number(String(v).replace(/[^\d]/g, "")) }).then(function(){ return done("Price updated."); }).catch(function(ex){ flash(ex.message, "err"); });
+    }
+    if (b.dataset.adAct === "sold") {
+      if (!confirm("Mark your " + TCD.title(ad) + " as sold? It will be taken off the site.")) return;
+      call("markMyAdSold", { id: id }).then(function(){ return done("Marked as sold. Congratulations!"); }).catch(function(ex){ flash(ex.message, "err"); });
+    }
+    if (b.dataset.adAct === "delete") {
+      if (!confirm("Delete your " + TCD.title(ad) + " and its photos? This cannot be undone.")) return;
+      call("deleteMyAd", { id: id }).then(function(){ return done("Car deleted."); }).catch(function(ex){ flash(ex.message, "err"); });
+    }
   });
 
   root.addEventListener("click", function(e){

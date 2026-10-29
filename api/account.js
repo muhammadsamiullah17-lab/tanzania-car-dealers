@@ -1,6 +1,7 @@
 // POST /api/account { action, ... } for customer members, plus the one login used by everyone.
 // "signup" and "login" are open; the rest need a member session.
-import { ads, sortListings, readBody, send } from "../lib/store.js";
+import { ads, files, sortListings, savePhoto, photoFileId, readBody, send } from "../lib/store.js";
+import { adFields, checkPrice } from "../lib/adfields.js";
 import { issueToken, readToken } from "../lib/auth.js";
 import { users, publicUser } from "../lib/users.js";
 import { checkNewPassword, hashPassword, verifyPassword } from "../lib/secure.js";
@@ -96,7 +97,65 @@ const actions = {
   async myAds(b, me) {
     return { ads: sortListings((await ads.all()).filter((a) => a.memberId === me.id)) };
   },
+
+  async getMyAd(b, me) {
+    return { ad: await ownAd(b.id, me) };
+  },
+
+  // Changing details or photos sends a live ad back for staff approval, so an approved ad can't
+  // be swapped for a different car. keepPhotos: existing photo URLs to keep; newPhotos: data URLs.
+  async updateMyAd(b, me) {
+    const ad = await ownAd(b.id, me);
+    if (ad.status === "sold") throw fail("This car is marked as sold.");
+    const fields = adFields(b);
+    const keep = (b.keepPhotos || []).filter((u) => ad.photos.includes(u));
+    const added = [];
+    for (const p of (b.newPhotos || []).slice(0, 10 - keep.length)) added.push(await savePhoto("ad:" + ad.id, p));
+    if (!keep.length && !added.length) throw fail("Keep or add at least one photo.");
+    for (const u of ad.photos.filter((u) => !keep.includes(u))) await files.remove(photoFileId(u)).catch(() => {});
+    if (fields.price < ad.price) ad.priceDroppedAt = new Date().toISOString();
+    Object.assign(ad, fields, { photos: keep.concat(added), status: "pending", editedAt: new Date().toISOString(), updatedAt: new Date().toISOString(), updatedBy: "seller" });
+    await ads.save(ad);
+    return { ad };
+  },
+
+  // A price change stays live (no new approval needed).
+  async setMyAdPrice(b, me) {
+    const ad = await ownAd(b.id, me);
+    if (ad.status === "sold") throw fail("This car is marked as sold.");
+    const price = checkPrice(b.price);
+    if (price < ad.price) ad.priceDroppedAt = new Date().toISOString();
+    ad.priceHistory = (ad.priceHistory || []).concat({ price: ad.price, until: new Date().toISOString() });
+    ad.price = price;
+    ad.updatedAt = new Date().toISOString();
+    ad.updatedBy = "seller";
+    await ads.save(ad);
+    return { ad };
+  },
+
+  async markMyAdSold(b, me) {
+    const ad = await ownAd(b.id, me);
+    ad.status = "sold";
+    ad.soldAt = new Date().toISOString();
+    ad.featuredUntil = null;
+    ad.updatedAt = ad.soldAt;
+    ad.updatedBy = "seller";
+    await ads.save(ad);
+    return { ad };
+  },
+
+  async deleteMyAd(b, me) {
+    const ad = await ownAd(b.id, me);
+    await ads.remove(ad);
+    return { ok: true };
+  },
 };
+
+async function ownAd(id, me) {
+  const ad = await ads.get(id);
+  if (!ad || ad.memberId !== me.id) throw fail("Car not found.", 404);
+  return ad;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "Method not allowed" });

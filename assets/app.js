@@ -154,7 +154,13 @@
     document.body.appendChild(fab);
   }
 
+  // Same list as lib/adfields.js FEATURES (the server ignores anything else).
+  var FEATURES = ["Air conditioning", "Climate control", "Power steering", "Power windows", "Power mirrors", "Central locking", "Keyless entry",
+    "Push start", "Cruise control", "Steering controls", "ABS", "Airbags", "Traction control", "Immobilizer", "Reverse camera",
+    "Parking sensors", "Navigation", "Bluetooth", "Touch screen", "Leather seats", "Heated seats", "Sunroof", "Alloy wheels",
+    "Fog lights", "LED headlights", "Roof rails", "Tow bar", "Third row seats"];
+
   window.TCD = { esc: esc, waLink: waLink, money: money, fmt: fmt, title: title, carSvg: carSvg, card: card, enquiry: enquiry,
     sellerLabel: sellerLabel, houseCars: houseCars, loadMarket: loadMarket, chrome: chrome, WA_ICON: WA_ICON,
-    session: session, api: api, shrinkImage: shrinkImage };
+    session: session, api: api, shrinkImage: shrinkImage, FEATURES: FEATURES };
 })();

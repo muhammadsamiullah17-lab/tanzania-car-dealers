@@ -30,8 +30,16 @@
         <div><label for="fuel">Fuel</label><select id="fuel" name="fuel"><option>Petrol</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select></div>
         <div><label for="gearbox">Gearbox</label><select id="gearbox" name="gearbox"><option>Automatic</option><option>Manual</option></select></div>
         <div><label for="color">Colour</label><input id="color" name="color" maxlength="30" placeholder="Silver"></div>
+        <div><label for="cc">Engine size (cc)</label><input id="cc" name="cc" type="number" min="50" max="10000" placeholder="1800"></div>
+        <div><label for="drive">Drive</label><select id="drive" name="drive"><option>2WD</option><option>4WD</option></select></div>
+        <div><label for="assembly">Assembly</label><select id="assembly" name="assembly"><option value="Imported">Imported (e.g. from Japan)</option><option value="Local">Locally assembled</option></select></div>
+        <div><label for="registeredIn">Registered in</label><input id="registeredIn" name="registeredIn" list="cities" maxlength="40" placeholder="Dar es Salaam, or Not registered"></div>
+        <div><label for="owners">Previous owners in Tanzania</label><select id="owners" name="owners"><option value="">Don't know</option><option value="0">None (fresh import)</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4 or more</option></select></div>
+        <div class="full"><label>Features</label><div class="features" id="features"></div></div>
         <div class="full"><label for="description">Description</label><textarea id="description" name="description" maxlength="2000" placeholder="Condition, service history, extras, reason for selling…"></textarea></div>
-        <div class="full"><label for="photos">Photos * (up to 6)</label><input id="photos" type="file" accept="image/*" multiple>
+        <div class="full"><label for="photos">Photos * (up to 10)</label>
+          <div class="thumbs" id="keep" hidden></div>
+          <input id="photos" type="file" accept="image/*" multiple>
           <div class="hint">Take photos in daylight, holding the phone sideways. Include front, back, both sides, inside and the dashboard.</div>
           <div class="thumbs" id="thumbs"></div></div>
         <div class="full"><button class="btn btn-main" id="submit" type="submit" style="width:100%">Send my car for approval</button>
@@ -67,6 +75,26 @@
     gate.innerHTML = steps + '<div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn btn-main" href="/signup">Create an account</a><a class="btn btn-ghost" href="/login?next=/sell">I already have an account</a></div>';
     return;
   }
+  var editId = new URLSearchParams(location.search).get("edit");
+  var current = null; // the ad being edited
+  var MAX = 10;
+  document.getElementById("features").innerHTML = TCD.FEATURES.map(function(f){
+    return '<label><input type="checkbox" name="feature" value="' + esc(f) + '"> ' + esc(f) + '</label>';
+  }).join("");
+
+  function fillForm(ad){
+    ["make", "model", "year", "price", "km", "city", "body", "fuel", "gearbox", "color", "cc", "drive", "assembly", "registeredIn", "description"].forEach(function(k){
+      if (ad[k] != null && form.elements[k]) form.elements[k].value = ad[k];
+    });
+    form.elements.owners.value = ad.owners == null ? "" : String(Math.min(ad.owners, 4));
+    form.querySelectorAll('input[name="feature"]').forEach(function(c){ c.checked = (ad.features || []).indexOf(c.value) !== -1; });
+    var keep = document.getElementById("keep");
+    keep.hidden = false;
+    keep.innerHTML = ad.photos.map(function(p){
+      return '<label style="display:inline-flex;flex-direction:column;gap:4px;font-weight:500;font-size:12px"><img src="' + esc(p) + '" alt=""><span><input type="checkbox" data-keep="' + esc(p) + '" checked style="width:auto"> keep</span></label>';
+    }).join("");
+  }
+
   TCD.api("account", "me").then(function(j){
     var u = j.user;
     if (u.status !== "verified") {
@@ -75,12 +103,23 @@
         '</div><a class="btn btn-main" href="/account">Go to my account</a>';
       return;
     }
-    gate.innerHTML = "";
     document.getElementById("as").innerHTML = "Posting as <b>" + esc(u.type === "dealer" && u.business ? u.business.name : u.fullName) + "</b> <span class=\"verified\">✓ Verified</span> · buyers will WhatsApp you on +" + esc(u.phone);
-    if (u.city) form.city.value = u.city;
-    form.hidden = false;
+    if (!editId) {
+      gate.innerHTML = "";
+      if (u.city) form.city.value = u.city;
+      form.hidden = false;
+      return;
+    }
+    return TCD.api("account", "getMyAd", { id: editId }).then(function(r){
+      current = r.ad;
+      document.querySelector("h1").textContent = "Edit your car";
+      gate.innerHTML = '<div class="notice ok">After you save, the car goes back to our team for a quick check before it shows again. To change only the price, use <b>Change price</b> in <a href="/account">My account</a> instead: that stays live.</div>';
+      btn.textContent = "Save changes and send for approval";
+      fillForm(current);
+      form.hidden = false;
+    });
   }).catch(function(ex){
-    if (ex.status === 401) { TCD.session.clear(); location.href = "/login?next=/sell"; return; }
+    if (ex.status === 401) { TCD.session.clear(); location.href = "/login?next=" + encodeURIComponent(location.pathname + location.search); return; }
     gate.innerHTML = '<div class="notice err">' + esc(ex.message) + '</div>';
   });
 
@@ -89,7 +128,7 @@
     document.getElementById("price-hint").textContent = v ? TCD.money(v) : "";
   });
   document.getElementById("photos").addEventListener("change", function(e){
-    var files = Array.from(e.target.files).slice(0, 6);
+    var files = Array.from(e.target.files).slice(0, MAX);
     Promise.all(files.map(function(f){ return TCD.shrinkImage(f, 1280, 0.8); })).then(function(list){
       photos = list;
       document.getElementById("thumbs").innerHTML = list.map(function(p){ return '<img src="' + p + '" alt="">'; }).join("");
@@ -104,24 +143,28 @@
   form.addEventListener("submit", function(e){
     e.preventDefault();
     var data = {};
-    new FormData(form).forEach(function(v, k){ data[k] = v; });
+    new FormData(form).forEach(function(v, k){ if (k !== "feature") data[k] = v; });
+    data.features = Array.from(form.querySelectorAll('input[name="feature"]:checked')).map(function(c){ return c.value; });
     var missing = Array.from(form.querySelectorAll("[required]")).filter(function(el){ return !el.value.trim(); });
     if (missing.length) return show("err", "Please fill in all fields marked *.");
-    if (!photos.length) return show("err", "Please add at least one photo of the car.");
-    data.photos = photos;
+    var keep = Array.from(form.querySelectorAll("[data-keep]")).filter(function(c){ return c.checked; }).map(function(c){ return c.dataset.keep; });
+    if (!photos.length && !keep.length) return show("err", "Please add at least one photo of the car.");
+    if (keep.length + photos.length > MAX) return show("err", "Up to " + MAX + " photos in total. Untick some old photos or choose fewer new ones.");
     btn.disabled = true; btn.textContent = "Sending…";
-    fetch("/api/submit", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + TCD.session.get().token }, body: JSON.stringify(data) })
-      .then(function(r){ return r.json().then(function(j){ if (!r.ok) throw new Error(j.error || "Something went wrong"); return j; }); })
-      .then(function(j){
-        form.hidden = true;
-        msg.innerHTML = '<div class="notice ok"><b>Thank you! Your car was sent for approval.</b><br>Ad ID: ' + esc(j.id) +
+    var request = current
+      ? TCD.api("account", "updateMyAd", Object.assign(data, { id: current.id, keepPhotos: keep, newPhotos: photos }))
+      : fetch("/api/submit", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + TCD.session.get().token }, body: JSON.stringify(Object.assign(data, { photos: photos })) })
+          .then(function(r){ return r.json().then(function(j){ if (!r.ok) throw new Error(j.error || "Something went wrong"); return j; }); });
+    request.then(function(j){
+        var id = current ? current.id : j.id;
+        form.hidden = true; gate.innerHTML = "";
+        msg.innerHTML = '<div class="notice ok"><b>' + (current ? "Saved! Your changes were sent for approval." : "Thank you! Your car was sent for approval.") + '</b><br>Ad ID: ' + esc(id) +
           '. We usually approve cars within a few hours. Want it shown at the top as a Featured ad? ' +
-          '<a target="_blank" rel="noopener" href="' + esc(TCD.waLink(window.SITE.whatsapp, "Hello, I posted ad " + j.id + " and I would like to make it Featured.")) + '">Message us on WhatsApp</a>.</div>' +
+          '<a target="_blank" rel="noopener" href="' + esc(TCD.waLink(window.SITE.whatsapp, "Hello, I posted ad " + id + " and I would like to make it Featured.")) + '">Message us on WhatsApp</a>.</div>' +
           '<a class="btn btn-ghost" href="/sell">Post another car</a> <a class="btn btn-ghost" href="/account">My account</a>';
         window.scrollTo({ top: 0, behavior: "smooth" });
       })
-      .catch(function(err){ show("err", err.message); })
-      .finally(function(){ btn.disabled = false; btn.textContent = "Send my car for approval"; });
+      .catch(function(err){ show("err", err.message); btn.disabled = false; btn.textContent = current ? "Save changes and send for approval" : "Send my car for approval"; });
   });
 })();
 </script>

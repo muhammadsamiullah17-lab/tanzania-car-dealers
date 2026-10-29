@@ -3,14 +3,7 @@
 import { ads, newId, savePhoto, readBody, send } from "../lib/store.js";
 import { readToken } from "../lib/auth.js";
 import { members } from "../lib/members.js";
-
-const BODIES = ["SUV", "Sedan", "Hatchback", "Pickup", "Van", "Wagon", "Coupe", "Truck", "Bus", "Other"];
-const FUELS = ["Petrol", "Diesel", "Hybrid", "Electric"];
-const GEARS = ["Automatic", "Manual"];
-
-function text(v, max) {
-  return String(v ?? "").trim().slice(0, max);
-}
+import { adFields } from "../lib/adfields.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "Method not allowed" });
@@ -24,18 +17,14 @@ export default async function handler(req, res) {
   } catch {
     return send(res, 400, { error: "Invalid request" });
   }
-
-  const year = Number(b.year), price = Number(b.price), km = Number(b.km);
-  const errors = [];
-  if (!text(b.make, 40)) errors.push("make");
-  if (!text(b.model, 60)) errors.push("model");
-  if (!(year >= 1970 && year <= new Date().getFullYear() + 1)) errors.push("year");
-  if (!(price >= 100000 && price <= 5e10)) errors.push("price");
-  if (!(km >= 0 && km <= 2e6)) errors.push("mileage");
-  if (!text(b.city, 40)) errors.push("city");
-  const photos = Array.isArray(b.photos) ? b.photos.slice(0, 6) : [];
-  if (!photos.length) errors.push("at least one photo");
-  if (errors.length) return send(res, 400, { error: "Please check: " + errors.join(", ") + "." });
+  let fields;
+  try {
+    fields = adFields(b);
+  } catch (e) {
+    return send(res, 400, { error: e.message });
+  }
+  const photos = Array.isArray(b.photos) ? b.photos.slice(0, 10) : [];
+  if (!photos.length) return send(res, 400, { error: "Please check: at least one photo." });
 
   const id = newId();
   try {
@@ -46,15 +35,7 @@ export default async function handler(req, res) {
     await ads.save({
       id,
       status: "pending",
-      make: text(b.make, 40),
-      model: text(b.model, 60),
-      year, price, km,
-      fuel: FUELS.includes(b.fuel) ? b.fuel : "Petrol",
-      gearbox: GEARS.includes(b.gearbox) ? b.gearbox : "Automatic",
-      body: BODIES.includes(b.body) ? b.body : "Other",
-      color: text(b.color, 30),
-      city: text(b.city, 40),
-      description: text(b.description, 2000),
+      ...fields,
       memberId: me.id,
       sellerName: me.fullName,
       sellerPhone: me.phone,

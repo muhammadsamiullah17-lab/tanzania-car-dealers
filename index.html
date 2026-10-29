@@ -31,21 +31,39 @@
   <div class="wrap">
     <h2>Cars for sale</h2>
     <p class="sub">Featured cars are shown first. Tap a car for photos and details, or ask the seller on WhatsApp.</p>
-    <div class="filters">
-      <input id="q" type="search" placeholder="Search make or model, e.g. Prado">
-      <select id="f-make"><option value="">All makes</option></select>
-      <select id="f-body"><option value="">All body types</option></select>
-      <select id="f-city"><option value="">All cities</option></select>
-      <select id="f-price">
-        <option value="">Any price</option>
-        <option value="0-25000000">Under 25M TZS</option>
-        <option value="25000000-50000000">25M to 50M TZS</option>
-        <option value="50000000-80000000">50M to 80M TZS</option>
-        <option value="80000000-999999999999">Over 80M TZS</option>
-      </select>
-    </div>
+    <form class="search" id="search" onsubmit="return false">
+      <div class="filters">
+        <input name="q" type="search" placeholder="Search make or model, e.g. Prado">
+        <select name="make"><option value="">All makes</option></select>
+        <select name="body"><option value="">All body types</option></select>
+        <select name="city"><option value="">All cities</option></select>
+        <select name="sort">
+          <option value="">Featured first, newest</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+          <option value="year-desc">Year: newest first</option>
+          <option value="km-asc">Mileage: lowest first</option>
+        </select>
+      </div>
+      <details id="more"><summary>More filters</summary>
+        <div class="filters more">
+          <input name="pmin" type="number" min="0" step="1000000" placeholder="Min price (TZS)">
+          <input name="pmax" type="number" min="0" step="1000000" placeholder="Max price (TZS)">
+          <input name="ymin" type="number" min="1970" placeholder="Year from">
+          <input name="ymax" type="number" min="1970" placeholder="Year to">
+          <input name="kmax" type="number" min="0" step="10000" placeholder="Max mileage (km)">
+          <select name="gearbox"><option value="">Any gearbox</option><option>Automatic</option><option>Manual</option></select>
+          <select name="fuel"><option value="">Any fuel</option><option>Petrol</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select>
+          <select name="drive"><option value="">2WD or 4WD</option><option>2WD</option><option>4WD</option></select>
+          <select name="seller"><option value="">Any seller</option><option value="private">Private sellers</option><option value="dealer">Dealers</option></select>
+          <label class="check"><input type="checkbox" name="photos" value="1"> With photos only</label>
+        </div>
+      </details>
+      <div class="result-bar"><span id="count"></span><button type="button" class="btn btn-ghost btn-sm" id="clear">Clear filters</button></div>
+    </form>
     <div class="grid" id="grid"><p class="empty">Loading cars…</p></div>
-    <p class="empty" id="empty" hidden>No cars match. Message us on WhatsApp and we'll find one for you.</p>
+    <p class="empty" id="empty" hidden>No cars match. Try fewer filters, or <a href="/japan#request">ask us to find one from Japan</a>.</p>
+    <nav class="pager" id="pager"></nav>
   </div>
 </section>
 
@@ -86,37 +104,95 @@
 <script>
 (function(){
   TCD.chrome("cars");
-  var grid = document.getElementById("grid"), empty = document.getElementById("empty");
-  var q = document.getElementById("q"), fMake = document.getElementById("f-make"), fBody = document.getElementById("f-body"),
-      fCity = document.getElementById("f-city"), fPrice = document.getElementById("f-price");
-  var market;
+  var grid = document.getElementById("grid"), empty = document.getElementById("empty"), pager = document.getElementById("pager");
+  var form = document.getElementById("search"), f = form.elements;
+  var PER_PAGE = 24, page = 1, market;
+  var KEYS = ["q", "make", "body", "city", "sort", "pmin", "pmax", "ymin", "ymax", "kmax", "gearbox", "fuel", "drive", "seller", "photos"];
 
   function fill(select, values){
     Array.from(new Set(values)).filter(Boolean).sort().forEach(function(v){ select.add(new Option(v, v)); });
   }
-  function render(){
-    var term = q.value.trim().toLowerCase();
-    var range = fPrice.value ? fPrice.value.split("-").map(Number) : null;
+  function val(k){ return f[k].type === "checkbox" ? (f[k].checked ? "1" : "") : f[k].value.trim(); }
+  // Filters live in the address bar (?make=Toyota&pmax=40000000&page=2) so a search can be shared or bookmarked.
+  function readUrl(){
+    var p = new URLSearchParams(location.search);
+    KEYS.forEach(function(k){ if (f[k].type === "checkbox") f[k].checked = p.get(k) === "1"; else if (p.has(k)) f[k].value = p.get(k); });
+    page = Math.max(1, Number(p.get("page")) || 1);
+    if (["pmin", "pmax", "ymin", "ymax", "kmax", "gearbox", "fuel", "drive", "seller", "photos"].some(function(k){ return p.get(k); })) document.getElementById("more").open = true;
+  }
+  function writeUrl(){
+    var p = new URLSearchParams();
+    KEYS.forEach(function(k){ if (val(k)) p.set(k, val(k)); });
+    if (page > 1) p.set("page", page);
+    history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : "") + "#stock");
+  }
+  function sellerKind(c){ return c.house || c.dealerId || c.sellerType === "dealer" ? "dealer" : "private"; }
+  function filtered(){
+    var term = val("q").toLowerCase(), n = function(k){ return Number(val(k)) || 0; };
     var list = market.cars.filter(function(c){
       if (term && (c.make + " " + c.model).toLowerCase().indexOf(term) === -1) return false;
-      if (fMake.value && c.make !== fMake.value) return false;
-      if (fBody.value && c.body !== fBody.value) return false;
-      if (fCity.value && c.city !== fCity.value) return false;
-      if (range && (c.price < range[0] || c.price >= range[1])) return false;
+      if (val("make") && c.make !== val("make")) return false;
+      if (val("body") && c.body !== val("body")) return false;
+      if (val("city") && c.city !== val("city")) return false;
+      if (n("pmin") && c.price < n("pmin")) return false;
+      if (n("pmax") && c.price > n("pmax")) return false;
+      if (n("ymin") && c.year < n("ymin")) return false;
+      if (n("ymax") && c.year > n("ymax")) return false;
+      if (n("kmax") && c.km > n("kmax")) return false;
+      if (val("gearbox") && c.gearbox !== val("gearbox")) return false;
+      if (val("fuel") && c.fuel !== val("fuel")) return false;
+      if (val("drive") && (c.drive || "2WD") !== val("drive")) return false;
+      if (val("seller") && sellerKind(c) !== val("seller")) return false;
+      if (val("photos") && !(c.photos && c.photos.length)) return false;
       return true;
     });
-    grid.innerHTML = list.map(function(c){ return TCD.card(c, market.dealersById); }).join("");
-    empty.hidden = list.length > 0;
+    var sorts = {
+      "price-asc": function(a, b){ return a.price - b.price; }, "price-desc": function(a, b){ return b.price - a.price; },
+      "year-desc": function(a, b){ return b.year - a.year; }, "km-asc": function(a, b){ return a.km - b.km; },
+    };
+    if (sorts[val("sort")]) list = list.slice().sort(sorts[val("sort")]);
+    return list;
   }
+  function render(){
+    if (!market) return;
+    var list = filtered(), pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+    page = Math.min(page, pages);
+    var shown = list.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+    grid.innerHTML = shown.map(function(c){ return TCD.card(c, market.dealersById); }).join("");
+    empty.hidden = list.length > 0;
+    document.getElementById("count").textContent = list.length
+      ? (list.length === 1 ? "1 car" : list.length + " cars") + (pages > 1 ? " · showing " + ((page - 1) * PER_PAGE + 1) + "–" + ((page - 1) * PER_PAGE + shown.length) : "")
+      : "";
+    var links = [];
+    if (pages > 1) {
+      for (var i = 1; i <= pages; i++) {
+        if (i === 1 || i === pages || Math.abs(i - page) <= 2) links.push('<button type="button" data-page="' + i + '"' + (i === page ? ' class="on"' : "") + '>' + i + '</button>');
+        else if (links[links.length - 1] !== "…") links.push("…");
+      }
+      if (page > 1) links.unshift('<button type="button" data-page="' + (page - 1) + '">‹ Previous</button>');
+      if (page < pages) links.push('<button type="button" data-page="' + (page + 1) + '">Next ›</button>');
+    }
+    pager.innerHTML = links.map(function(l){ return l === "…" ? "<span>…</span>" : l; }).join("");
+    writeUrl();
+  }
+  pager.addEventListener("click", function(e){
+    var b = e.target.closest("[data-page]"); if (!b) return;
+    page = Number(b.dataset.page); render();
+    document.getElementById("stock").scrollIntoView({ behavior: "smooth" });
+  });
+  document.getElementById("clear").addEventListener("click", function(){ form.reset(); page = 1; render(); });
+
   TCD.loadMarket().then(function(m){
     market = m;
-    fill(fMake, m.cars.map(function(c){ return c.make; }));
-    fill(fBody, m.cars.map(function(c){ return c.body; }));
-    fill(fCity, m.cars.map(function(c){ return c.city; }));
+    fill(f.make, m.cars.map(function(c){ return c.make; }));
+    fill(f.body, m.cars.map(function(c){ return c.body; }));
+    fill(f.city, m.cars.map(function(c){ return c.city; }));
     document.getElementById("stat-count").textContent = m.cars.length;
     document.getElementById("stat-dealers").textContent = m.dealers.length + 1;
-    [q, fMake, fBody, fCity, fPrice].forEach(function(el){ el.addEventListener("input", render); });
+    readUrl();
+    form.addEventListener("input", function(){ page = 1; render(); });
     render();
+    if (location.search) document.getElementById("stock").scrollIntoView();
   });
 })();
 </script>
