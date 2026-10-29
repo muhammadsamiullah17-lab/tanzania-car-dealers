@@ -30,6 +30,7 @@ Car marketplace for Tanzania. Every seller (private person or car dealer) create
 ## Accounts and buying
 
 - The header always shows **Log in**. `/login` takes a phone number (customers) or staff ID; staff go to `/admin`, customers to `/account` (titled **Dealer dashboard** for dealers). Someone already logged in who opens `/login` goes straight to their page.
+- **Private (individual) sellers are closed for now** (Admin › Site settings, admins only): only buyers and car dealers can sign up, and private sellers can't post new cars (existing ones can still be edited, marked sold or deleted). Tick "Allow private sellers" to open again.
 - Three account types at `/signup`: **buyer** (no documents, active at once), **private seller** and **dealer** (both verified before posting). A buyer can later **Become a seller** from their account.
 - Every car page offers two ways to buy: **contact the seller directly** (WhatsApp / call) or **🤝 Buy through Tanzania Car Dealers** (`lib/deals.js`): the buyer (logged in) sends a request with an optional offer; staff manage it in Admin › **Buy requests** (WhatsApp buyer and seller, status, a message the buyer sees, staff-only notes). Buyers follow progress in their account.
 

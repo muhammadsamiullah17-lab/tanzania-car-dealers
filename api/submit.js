@@ -4,6 +4,7 @@ import { ads, newId, savePhoto, readBody, send } from "../lib/store.js";
 import { readToken } from "../lib/auth.js";
 import { members } from "../lib/members.js";
 import { adFields } from "../lib/adfields.js";
+import { getSite } from "../lib/site.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "Method not allowed" });
@@ -11,6 +12,7 @@ export default async function handler(req, res) {
   const me = t && t.kind === "m" ? await members.get(t.id).catch(() => null) : null;
   if (!me) return send(res, 401, { error: "Please log in to post a car." });
   if (me.status !== "verified") return send(res, 403, { error: "Your account must be verified before you can post a car." });
+  if (me.type !== "dealer" && !(await getSite()).privateSellersEnabled) return send(res, 403, { error: "For now only verified car dealers can post cars." });
   let b;
   try {
     b = await readBody(req);

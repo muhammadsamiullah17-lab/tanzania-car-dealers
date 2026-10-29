@@ -97,6 +97,15 @@
 
   TCD.api("account", "me").then(function(j){
     var u = j.user;
+    if (u.type === "buyer") {
+      gate.innerHTML = '<div class="notice err"><b>This is a buyer account.</b> To sell, go to My account and choose <b>Want to sell a car?</b></div><a class="btn btn-main" href="/account">Go to my account</a>';
+      return;
+    }
+    if (u.type === "private" && j.site && !j.site.privateSellersEnabled && !editId) {
+      gate.innerHTML = '<div class="notice err"><b>For now only verified car dealers can post cars.</b> Want to sell your car? Our team can help.</div>' +
+        '<a class="btn btn-wa" target="_blank" rel="noopener" href="' + esc(TCD.waLink(window.SITE.whatsapp, "Hello, I want to sell my car through Tanzania Car Dealers.")) + '">' + TCD.WA_ICON + 'Ask on WhatsApp</a> <a class="btn btn-ghost" href="/account">My account</a>';
+      return;
+    }
     if (u.status !== "verified") {
       gate.innerHTML = '<div class="notice err"><b>Your account is not verified yet.</b> ' +
         (u.status === "review" ? "Our team is checking your documents and will call you soon." : "Please finish your details and documents and send them for verification.") +

@@ -8,6 +8,7 @@ import { checkNewPassword, hashPassword, verifyPassword } from "../lib/secure.js
 import { members, cleanPhone, profileFields, newMember, missing, selfView, saveDoc, DOC_KINDS, ACCOUNT_TYPES } from "../lib/members.js";
 import { deals, buyerView } from "../lib/deals.js";
 import { getPaySettings } from "../lib/payments.js";
+import { getSite, publicSite } from "../lib/site.js";
 import { newId } from "../lib/store.js";
 
 function fail(message, status = 400) {
@@ -20,8 +21,14 @@ function editable(me) {
 }
 
 const open = {
+  // Which sign-up options are open right now (private sellers can be switched off by an admin).
+  async siteOptions() {
+    return publicSite(await getSite());
+  },
+
   async signup(b) {
     const type = ACCOUNT_TYPES.includes(b.type) ? b.type : "private";
+    if (type === "private" && !(await getSite()).privateSellersEnabled) throw fail("For now only car dealers can sell on Tanzania Car Dealers. You can create a buyer account, or a dealer account if you have a registered business.");
     const phone = cleanPhone(b.phone);
     checkNewPassword(b.password);
     if (!b.consent) throw fail(type === "buyer" ? "Please agree to the terms." : "Please agree to the verification terms.");
@@ -57,7 +64,7 @@ const open = {
 
 const actions = {
   async me(b, me) {
-    return { user: selfView(me), docKinds: DOC_KINDS[me.type], paidEnabled: Boolean((await getPaySettings()).paidEnabled) };
+    return { user: selfView(me), docKinds: DOC_KINDS[me.type], paidEnabled: Boolean((await getPaySettings()).paidEnabled), site: publicSite(await getSite()) };
   },
 
   async updateProfile(b, me) {
@@ -81,6 +88,7 @@ const actions = {
   // A buyer who wants to sell too: becomes a private seller and goes through verification.
   async becomeSeller(b, me) {
     if (me.type !== "buyer") throw fail("You already have a seller account.");
+    if (!b.asDealer && !(await getSite()).privateSellersEnabled) throw fail("For now only car dealers can sell. Choose the dealer option if you have a registered business.");
     me.type = b.asDealer ? "dealer" : "private";
     if (me.type === "dealer") me.business = { name: String(b.businessName || "").trim().slice(0, 100), tin: "", licenceNo: "", brelaNo: "", address: "" };
     if (me.type === "dealer" && !me.business.name) throw fail("Please enter the business name.");

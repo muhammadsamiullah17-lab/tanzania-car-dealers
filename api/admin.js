@@ -8,6 +8,7 @@ import { members, staffView, readDoc, removeMember } from "../lib/members.js";
 import { jcars, jrequests, getSettings, saveSettings, SALE_TYPES, JSTATUSES, REQUEST_STATUSES } from "../lib/japan.js";
 import { alerts, reports, inspectionFields } from "../lib/buyers.js";
 import { deals, DEAL_STATUSES } from "../lib/deals.js";
+import { getSite, saveSite } from "../lib/site.js";
 import { orders, getPaySettings, adminPaySettings, savePaySettings, activateOrder, refreshSelcom } from "../lib/payments.js";
 
 const BODIES = ["Hatchback", "Sedan", "Wagon", "Coupe", "SUV", "MiniVan", "Van", "Pickup", "Truck", "Bus", "Other"];
@@ -264,6 +265,11 @@ const actions = {
       return { ok: true };
     },
   },
+
+  // ---- Site settings (admins) ----
+
+  getSite: { run: async () => ({ site: await getSite() }) },
+  saveSite: { roles: ADMIN, run: async (b, me) => ({ site: await saveSite(b.site || {}, me.username) }) },
 
   // ---- Buy through us: deals our team manages for buyers ----
 

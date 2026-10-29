@@ -68,6 +68,7 @@
     var phone = "+" + u.phone;
     if (u.type === "buyer") return '<div class="status verified"><b>Welcome! Find your next car</b>Save cars with ♥, contact sellers directly, or press <b>🤝 Buy through Tanzania Car Dealers</b> on any car and our team manages the purchase for you.' +
       '<div class="btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn btn-main" href="/#stock">Browse cars</a><a class="btn btn-ghost" href="/saved">♥ Saved cars</a><a class="btn btn-ghost" href="/japan">🇯🇵 Import from Japan</a></div></div>';
+    if (u.type === "private" && state.site && !state.site.privateSellersEnabled) return '<div class="status"><b>Private selling is paused</b>For now only verified car dealers can post cars. Your cars already on the site stay there and you can still edit, mark sold or delete them. Selling a car? <a target="_blank" rel="noopener" href="' + esc(TCD.waLink(window.SITE.whatsapp, "Hello, I want to sell my car through Tanzania Car Dealers.")) + '">Ask us on WhatsApp</a>.</div>';
     if (u.status === "verified") return '<div class="status verified"><b>✓ Your account is verified</b>You can now post cars for sale. Each car is checked by our team before it goes live.' +
       '<div style="margin-top:12px"><a class="btn btn-main" href="/sell">Post a car</a>' + (u.dealerId ? ' <a class="btn btn-ghost" href="/dealer?id=' + esc(u.dealerId) + '">My dealer page</a>' : "") + '</div></div>';
     if (u.status === "review") return '<div class="status review"><b>Waiting for verification</b>Thank you! Our team is checking your documents and will call or WhatsApp you on <b>' + esc(phone) + '</b> to confirm. This usually takes 1 working day.</div>';
@@ -121,7 +122,7 @@
   function adsPanel(){
     if (state.user.status !== "verified" && !state.ads.length) return "";
     return '<div class="panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="font-size:20px;margin:0">My cars</h2>' +
-      (state.user.status === "verified" ? '<a class="btn btn-main btn-sm" href="/sell">+ Post a car</a>' : "") + '</div>' +
+      (state.user.status === "verified" && canPost() ? '<a class="btn btn-main btn-sm" href="/sell">+ Post a car</a>' : "") + '</div>' +
       (state.ads.length ? state.ads.map(function(a){
         var label = { pending: a.editedAt ? "Changes waiting for approval" : "Waiting for approval", approved: "Live", sold: "Sold", rejected: "Not approved" }[a.status] || a.status;
         var live = a.status !== "sold";
@@ -159,6 +160,7 @@
       '<div class="full"><button class="btn btn-main">Save password</button></div></div></form>';
   }
 
+  function canPost(){ return state.user.type === "dealer" || !state.site || state.site.privateSellersEnabled; }
   var DEAL_STEPS = ["new", "contacted", "inspection", "agreed", "completed"];
   function dealsPanel(){
     if (!state.deals.length) return state.user.type === "buyer" ? '<div class="panel"><h2 style="font-size:20px">Cars we are buying for you</h2><p class="hint">None yet. On any car page, press <b>🤝 Buy through Tanzania Car Dealers</b> and we take care of checking the car, the price, payment and papers.</p></div>' : "";
@@ -178,7 +180,7 @@
       '<div><label>Mobile number</label><input value="+' + esc(u.phone) + '" disabled></div>' +
       '<div class="full"><button class="btn btn-main">Save details</button></div></div></form>' +
       '<div class="panel"><h2 style="font-size:20px">Want to sell a car?</h2><p class="hint">Turn this into a seller account. We then check your ID (or business documents) and call you before you can post.</p>' +
-      '<div class="btns" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" data-become="private">I am a private person</button><button class="btn btn-ghost" data-become="dealer">I am a car dealer</button></div></div>';
+      '<div class="btns" style="display:flex;gap:8px;flex-wrap:wrap">' + (state.site && !state.site.privateSellersEnabled ? "" : '<button class="btn btn-ghost" data-become="private">I am a private person</button>') + '<button class="btn btn-ghost" data-become="dealer">I am a car dealer</button></div></div>';
   }
 
   function render(){
@@ -192,7 +194,7 @@
 
   function load(){
     return Promise.all([call("me"), call("myAds"), call("myDeals")]).then(function(r){
-      state.user = r[0].user; state.paidEnabled = r[0].paidEnabled; state.docKinds = r[0].docKinds; state.ads = r[1].ads; state.deals = r[2].deals; render();
+      state.user = r[0].user; state.paidEnabled = r[0].paidEnabled; state.site = r[0].site; state.docKinds = r[0].docKinds; state.ads = r[1].ads; state.deals = r[2].deals; render();
       if (state.user.status === "verified") TCD.api("pay", "myOrders").then(function(j){ state.orders = j.orders; render(); }).catch(function(){});
       if (/new=1/.test(location.search)) { flash(state.user.type === "buyer" ? "Welcome! Your account is ready." : "Account created! Now add your details and documents."); history.replaceState(null, "", "/account"); }
     }).catch(function(ex){ root.innerHTML = '<p class="notice err">' + esc(ex.message) + '</p>'; });

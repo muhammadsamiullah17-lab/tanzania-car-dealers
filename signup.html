@@ -25,7 +25,7 @@
     <form id="form" class="panel" novalidate>
       <div class="choice">
         <label><input type="radio" name="type" value="buyer" checked><b>I want to buy a car</b>Save cars, contact sellers, or let us manage the purchase for you. No documents needed.</label>
-        <label><input type="radio" name="type" value="private"><b>Private person</b>Selling my own car. You'll need your ID and a selfie.</label>
+        <label id="private-choice"><input type="radio" name="type" value="private"><b>Private person</b>Selling my own car. You'll need your ID and a selfie.</label>
         <label><input type="radio" name="type" value="dealer"><b>Car dealer / company</b>Showroom or business. You'll need your business licence, TIN and owner's ID.</label>
       </div>
       <div class="form-grid">
@@ -66,6 +66,14 @@
   }
   form.querySelectorAll('input[name="type"]').forEach(function(r){ r.addEventListener("change", sync); });
   sync();
+  // Private sellers can be closed by an admin: then only buyers and dealers can sign up.
+  TCD.api("account", "siteOptions").then(function(o){
+    if (o.privateSellersEnabled) return;
+    document.getElementById("private-choice").hidden = true;
+    document.querySelector(".choice").style.gridTemplateColumns = "repeat(2,1fr)";
+    if (f.type.value === "private") { f.type.value = "buyer"; sync(); }
+    document.querySelector(".choice").insertAdjacentHTML("afterend", '<p class="hint" style="margin:-8px 0 16px">For now only verified car dealers can sell on our site. Selling one car? <a target="_blank" rel="noopener" href="' + TCD.esc(TCD.waLink(window.SITE.whatsapp, "Hello, I want to sell my car through Tanzania Car Dealers.")) + '">Ask us on WhatsApp</a>.</p>');
+  }).catch(function(){});
 
   form.addEventListener("submit", function(e){
     e.preventDefault();

@@ -79,7 +79,7 @@
   TCD.chrome("");
   var esc = TCD.esc, $ = function(id){ return document.getElementById(id); };
   var state = { tab: "pending", ads: [], dealers: [], users: [], members: [], memberFilter: "review", openMember: null, editing: null, editingUser: null, me: null,
-    jcars: [], requests: [], importSettings: null, editingJcar: null, alerts: [], reports: [], inspecting: null, orders: [], paySettings: null, deals: [] };
+    jcars: [], requests: [], importSettings: null, editingJcar: null, alerts: [], reports: [], inspecting: null, orders: [], paySettings: null, deals: [], site: null };
   function isAdmin(){ return state.me && state.me.role === "admin"; }
   function canVerify(){ return state.me && (state.me.role === "admin" || state.me.role === "manager"); }
   var ROLE_LABEL = { admin: "Admin", manager: "Manager", staff: "Staff" };
@@ -129,9 +129,9 @@
   function load(){
     var none = Promise.resolve(null);
     return Promise.all([api("listAds"), api("listDealers"), isAdmin() ? api("listUsers") : none, canVerify() ? api("listMembers") : none,
-      api("listJcars"), api("listRequests"), api("getImportSettings"), api("listAlerts"), api("listReports"), api("listOrders"), canVerify() ? api("getPaySettings") : none, api("listDeals")]).then(function(r){
+      api("listJcars"), api("listRequests"), api("getImportSettings"), api("listAlerts"), api("listReports"), api("listOrders"), canVerify() ? api("getPaySettings") : none, api("listDeals"), api("getSite")]).then(function(r){
       state.ads = r[0].ads; state.dealers = r[1].dealers; state.users = r[2] ? r[2].users : []; state.members = r[3] ? r[3].members : [];
-      state.jcars = r[4].cars; state.requests = r[5].requests; state.importSettings = r[6].settings; state.alerts = r[7].alerts; state.reports = r[8].reports; state.orders = r[9].orders; state.paySettings = r[10] ? r[10].settings : null; state.deals = r[11].deals; render();
+      state.jcars = r[4].cars; state.requests = r[5].requests; state.importSettings = r[6].settings; state.alerts = r[7].alerts; state.reports = r[8].reports; state.orders = r[9].orders; state.paySettings = r[10] ? r[10].settings : null; state.deals = r[11].deals; state.site = r[12].site; render();
     }).catch(function(ex){ flash(ex.message, "err"); });
   }
   function start(user){
@@ -151,7 +151,7 @@
     if (canVerify()) t.push(["pay-settings", "Payment settings"]);
     t.push(["alerts", "🔔 Buyer alerts"], ["reports", "⚑ Reports"], ["japan", "🇯🇵 Japan stock"], ["requests", "Import requests"]);
     if (canVerify()) t.push(["import-settings", "Import settings"]);
-    if (isAdmin()) t.push(["users", "Staff users"]);
+    if (isAdmin()) t.push(["users", "Staff users"], ["site", "⚙ Site settings"]);
     return t;
   }
   function render(){
@@ -160,7 +160,7 @@
         : t[0] === "accounts" ? state.members.filter(function(m){ return m.status === "review"; }).length
         : t[0] === "deals" ? state.deals.filter(function(d){ return d.status === "new"; }).length
         : t[0] === "payments" ? state.orders.filter(function(o){ return o.status === "awaiting_check"; }).length
-        : t[0] === "pay-settings" ? ""
+        : t[0] === "pay-settings" || t[0] === "site" ? ""
         : t[0] === "alerts" ? state.alerts.filter(function(a){ return a.active && alertMatches(a).length; }).length
         : t[0] === "reports" ? state.reports.filter(function(r){ return r.status === "open"; }).length
         : t[0] === "japan" ? state.jcars.length : t[0] === "requests" ? state.requests.filter(function(r){ return r.status === "new"; }).length
@@ -170,8 +170,28 @@
     }).join("");
     $("view").innerHTML = state.tab === "dealers" ? dealersView() : state.tab === "users" ? usersView()
       : state.tab === "accounts" ? membersView() : state.tab === "japan" ? jcarsView() : state.tab === "requests" ? requestsView()
-      : state.tab === "import-settings" ? settingsView() : state.tab === "deals" ? dealsView() : state.tab === "payments" ? paymentsView() : state.tab === "pay-settings" ? paySettingsView() : state.tab === "alerts" ? alertsView() : state.tab === "reports" ? reportsView() : adsView(state.tab);
+      : state.tab === "import-settings" ? settingsView() : state.tab === "site" ? siteView() : state.tab === "deals" ? dealsView() : state.tab === "payments" ? paymentsView() : state.tab === "pay-settings" ? paySettingsView() : state.tab === "alerts" ? alertsView() : state.tab === "reports" ? reportsView() : adsView(state.tab);
   }
+
+  // ---- Site settings (admins): who may sell on the site ----
+  function siteView(){
+    var s = state.site; if (!s) return '<p class="empty">Loading…</p>';
+    var privateCount = state.members.filter(function(m){ return m.type === "private"; }).length;
+    var privateLive = state.ads.filter(function(a){ return a.status === "approved" && a.sellerType === "private"; }).length;
+    return '<form id="site-form" class="panel" style="max-width:720px"><h2 style="font-size:20px">Site settings</h2>' +
+      '<label style="display:flex;gap:10px;align-items:flex-start;font-weight:500;padding:14px;border:1px solid var(--line);border-radius:12px"><input type="checkbox" name="privateSellersEnabled" style="width:auto;margin-top:4px"' + (s.privateSellersEnabled ? " checked" : "") + '>' +
+      '<span><b>Allow private (individual) sellers</b><br><span class="hint">Off = only verified car dealers can sign up to sell and post cars. Buyers can always sign up. Private sellers who already have cars on the site can still edit, mark sold or delete them, but can' + "'" + 't post new ones. Turn on to open private selling again.</span></span></label>' +
+      '<p class="hint">Now: ' + privateCount + ' private seller account(s), ' + privateLive + ' live car(s) from private sellers. Remove cars from the Live tab if you want them off the site.' +
+      (s.updatedAt ? " Last changed " + new Date(s.updatedAt).toLocaleString() + " by " + esc(s.updatedBy) + "." : "") + '</p>' +
+      '<button class="btn btn-main">Save site settings</button></form>';
+  }
+  $("view").addEventListener("submit", function(e){
+    if (e.target.id !== "site-form") return;
+    e.preventDefault();
+    api("saveSite", { site: { privateSellersEnabled: e.target.elements.privateSellersEnabled.checked } })
+      .then(function(j){ state.site = j.site; render(); flash(j.site.privateSellersEnabled ? "Private sellers are open" : "Private sellers are closed: only dealers can sell"); })
+      .catch(function(ex){ flash(ex.message, "err"); });
+  });
 
   // ---- Buy through us: our team manages buying a car for a customer ----
   var DEAL_OPTS = [["new", "New request"], ["contacted", "Talking to seller"], ["inspection", "Inspection booked"], ["agreed", "Price agreed"], ["completed", "Completed"], ["cancelled", "Cancelled"]];
