@@ -76,6 +76,36 @@
   }
 
   var REASONS = ["Fake ad", "Already sold", "Wrong price", "Wrong phone number", "Scam or asked for deposit", "Other"];
+  // Option 2: our team manages the purchase for the buyer.
+  function throughUs(car){
+    var sw = TCD.lang === "sw";
+    return '<div class="panel through-us"><div class="way-label">' + (sw ? "Njia 2: Nunua kupitia sisi" : "Option 2: Let us manage it for you") + '</div>' +
+      '<b style="font-size:17px">🤝 ' + (sw ? "Nunua kupitia Tanzania Car Dealers" : "Buy through Tanzania Car Dealers") + '</b>' +
+      '<ul class="tips">' + (sw
+        ? ["Tunakagua gari na nyaraka zake", "Tunapanga ukaguzi wa fundi", "Tunajadiliana bei kwa niaba yako", "Malipo salama na uhamisho wa umiliki TRA"]
+        : ["We check the car and its papers", "We book a mechanic inspection", "We negotiate the price for you", "Safe payment and TRA ownership transfer"]).map(function(x){ return "<li>✓ " + x + "</li>"; }).join("") + '</ul>' +
+      '<button class="btn btn-main" style="width:100%;margin-top:10px" id="through-btn">' + (sw ? "Tusaidie kununua gari hili" : "Ask us to buy this car for me") + '</button><div id="through-box" hidden style="margin-top:12px"></div></div>';
+  }
+  function throughForm(car){
+    var box = document.getElementById("through-box"); box.hidden = false;
+    var s = TCD.session.get(), back = encodeURIComponent(location.pathname + location.search);
+    if (!s.token || s.kind !== "m") {
+      box.innerHTML = '<p style="margin:0 0 8px">Create a free buyer account (1 minute) so we can follow up and you can see progress.</p><div class="btns" style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<a class="btn btn-main btn-sm" href="/signup?type=buyer&next=' + back + '">Create account</a><a class="btn btn-ghost btn-sm" href="/login?next=' + back + '">Log in</a></div>';
+      return;
+    }
+    box.innerHTML = '<form id="through-form"><label>Your offer (optional, TZS)</label><input name="offer" type="number" min="0" step="100000" placeholder="' + car.price + '">' +
+      '<label style="margin-top:8px">Anything we should know?</label><textarea name="message" maxlength="1000" placeholder="e.g. I want to see it this week; I need a loan" style="min-height:70px"></textarea>' +
+      '<label style="margin-top:8px">How should we contact you?</label><select name="contactBy"><option value="whatsapp">WhatsApp</option><option value="call">Phone call</option></select>' +
+      '<button class="btn btn-main btn-sm" style="margin-top:10px">Send request</button></form>';
+    document.getElementById("through-form").addEventListener("submit", function(e){
+      e.preventDefault(); var f = e.target.elements;
+      TCD.api("account", "requestDeal", { adId: car.id, title: TCD.title(car), price: car.price, offer: f.offer.value, message: f.message.value, contactBy: f.contactBy.value })
+        .then(function(j){ box.innerHTML = '<p class="notice ok" style="margin:0"><b>Request sent (' + esc(j.deal.ref) + ').</b> Our team will contact you soon. Follow progress in <a href="/account">My account</a>.</p>'; })
+        .catch(function(ex){ if (ex.status === 401) { TCD.session.clear(); throughForm(car); return; } box.insertAdjacentHTML("afterbegin", '<p class="notice err">' + esc(ex.message) + '</p>'); });
+    });
+  }
+
   function reportForm(car){
     var box = document.getElementById("report-box"); box.hidden = false;
     box.innerHTML = '<form id="report-form"><label>Why are you reporting this ad?</label><select name="reason" required><option value="">Choose…</option>' +
@@ -120,9 +150,9 @@
           '<h1 style="font-size:26px;margin:8px 0 4px">' + esc(t) + '</h1>' +
           '<div class="price" style="font-size:26px">' + (sold ? TCD.t("SOLD") : TCD.money(car.price)) + '</div>' +
           '<p class="seller" style="margin:12px 0 16px">' + TCD.t("Sold by") + ' ' + (s.href ? '<a href="' + s.href + '">' + esc(s.name) + '</a>' : esc(s.name)) + (s.verified ? ' <span class="verified">✓ ' + TCD.t("Verified") + '</span>' : "") + '</p>' +
-          (sold ? "" : '<a class="btn btn-wa" style="width:100%" target="_blank" rel="noopener" href="' + esc(TCD.waLink(s.phone, TCD.enquiry(car))) + '">' + TCD.WA_ICON + TCD.t("Chat with seller on WhatsApp") + '</a>' +
+          (sold ? "" : '<div class="way-label">' + (TCD.lang === "sw" ? "Njia 1: Wasiliana na muuzaji moja kwa moja" : "Option 1: Contact the seller directly") + '</div><a class="btn btn-wa" style="width:100%" target="_blank" rel="noopener" href="' + esc(TCD.waLink(s.phone, TCD.enquiry(car))) + '">' + TCD.WA_ICON + TCD.t("Chat with seller on WhatsApp") + '</a>' +
             '<div class="btns" style="display:flex;gap:8px;margin-top:8px"><a class="btn btn-ghost" style="flex:1" href="tel:+' + esc(s.phone) + '">📞 ' + TCD.t("Call") + '</a><button class="btn btn-ghost" style="flex:1" id="share">↗ ' + TCD.t("Share") + '</button>' + TCD.saveButton(car.id, true).replace("♥", "♥ " + TCD.t("Save")) + '</div>') +
-        '</div>' +
+        '</div>' + (sold ? "" : throughUs(car)) +
         '<div class="panel"><b>' + TCD.t("Buy safely") + '</b><ul class="tips">' + ["See the car in person before paying.", "Check the registration card matches the seller.", "Never send a deposit to someone you have not met.", "Ask us for an inspection if you are unsure."].map(function(x){ return "<li>" + TCD.t(x) + "</li>"; }).join("") + '</ul>' +
           (car.house ? "" : '<button class="btn btn-ghost btn-sm" style="margin-top:12px" id="report-btn">⚑ ' + TCD.t("Report this ad") + '</button><div id="report-box" hidden style="margin-top:12px"></div>') + '</div>' +
       '</aside></div>' + inspectionPanel(car) + similar(car, market);
@@ -137,6 +167,7 @@
     });
     var sb = document.getElementById("share"); if (sb) sb.addEventListener("click", function(){ share(car, t); });
     var rb = document.getElementById("report-btn"); if (rb) rb.addEventListener("click", function(){ reportForm(car); });
+    var tb = document.getElementById("through-btn"); if (tb) tb.addEventListener("click", function(){ throughForm(car); });
   }
 
   TCD.loadMarket().then(function(market){

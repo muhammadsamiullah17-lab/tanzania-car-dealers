@@ -79,7 +79,7 @@
   TCD.chrome("");
   var esc = TCD.esc, $ = function(id){ return document.getElementById(id); };
   var state = { tab: "pending", ads: [], dealers: [], users: [], members: [], memberFilter: "review", openMember: null, editing: null, editingUser: null, me: null,
-    jcars: [], requests: [], importSettings: null, editingJcar: null, alerts: [], reports: [], inspecting: null, orders: [], paySettings: null };
+    jcars: [], requests: [], importSettings: null, editingJcar: null, alerts: [], reports: [], inspecting: null, orders: [], paySettings: null, deals: [] };
   function isAdmin(){ return state.me && state.me.role === "admin"; }
   function canVerify(){ return state.me && (state.me.role === "admin" || state.me.role === "manager"); }
   var ROLE_LABEL = { admin: "Admin", manager: "Manager", staff: "Staff" };
@@ -129,9 +129,9 @@
   function load(){
     var none = Promise.resolve(null);
     return Promise.all([api("listAds"), api("listDealers"), isAdmin() ? api("listUsers") : none, canVerify() ? api("listMembers") : none,
-      api("listJcars"), api("listRequests"), api("getImportSettings"), api("listAlerts"), api("listReports"), api("listOrders"), canVerify() ? api("getPaySettings") : none]).then(function(r){
+      api("listJcars"), api("listRequests"), api("getImportSettings"), api("listAlerts"), api("listReports"), api("listOrders"), canVerify() ? api("getPaySettings") : none, api("listDeals")]).then(function(r){
       state.ads = r[0].ads; state.dealers = r[1].dealers; state.users = r[2] ? r[2].users : []; state.members = r[3] ? r[3].members : [];
-      state.jcars = r[4].cars; state.requests = r[5].requests; state.importSettings = r[6].settings; state.alerts = r[7].alerts; state.reports = r[8].reports; state.orders = r[9].orders; state.paySettings = r[10] ? r[10].settings : null; render();
+      state.jcars = r[4].cars; state.requests = r[5].requests; state.importSettings = r[6].settings; state.alerts = r[7].alerts; state.reports = r[8].reports; state.orders = r[9].orders; state.paySettings = r[10] ? r[10].settings : null; state.deals = r[11].deals; render();
     }).catch(function(ex){ flash(ex.message, "err"); });
   }
   function start(user){
@@ -146,6 +146,7 @@
   function tabs(){
     var t = [["pending", "Cars waiting"], ["approved", "Live"], ["sold", "Sold"], ["rejected", "Rejected"], ["dealers", "Dealers"]];
     if (canVerify()) t.unshift(["accounts", "Accounts to verify"]);
+    t.splice(canVerify() ? 1 : 0, 0, ["deals", "🤝 Buy requests"]);
     t.push(["payments", "💳 Payments"]);
     if (canVerify()) t.push(["pay-settings", "Payment settings"]);
     t.push(["alerts", "🔔 Buyer alerts"], ["reports", "⚑ Reports"], ["japan", "🇯🇵 Japan stock"], ["requests", "Import requests"]);
@@ -157,6 +158,7 @@
     $("tabs").innerHTML = tabs().map(function(t){
       var n = t[0] === "dealers" ? state.dealers.length : t[0] === "users" ? state.users.length
         : t[0] === "accounts" ? state.members.filter(function(m){ return m.status === "review"; }).length
+        : t[0] === "deals" ? state.deals.filter(function(d){ return d.status === "new"; }).length
         : t[0] === "payments" ? state.orders.filter(function(o){ return o.status === "awaiting_check"; }).length
         : t[0] === "pay-settings" ? ""
         : t[0] === "alerts" ? state.alerts.filter(function(a){ return a.active && alertMatches(a).length; }).length
@@ -168,8 +170,46 @@
     }).join("");
     $("view").innerHTML = state.tab === "dealers" ? dealersView() : state.tab === "users" ? usersView()
       : state.tab === "accounts" ? membersView() : state.tab === "japan" ? jcarsView() : state.tab === "requests" ? requestsView()
-      : state.tab === "import-settings" ? settingsView() : state.tab === "payments" ? paymentsView() : state.tab === "pay-settings" ? paySettingsView() : state.tab === "alerts" ? alertsView() : state.tab === "reports" ? reportsView() : adsView(state.tab);
+      : state.tab === "import-settings" ? settingsView() : state.tab === "deals" ? dealsView() : state.tab === "payments" ? paymentsView() : state.tab === "pay-settings" ? paySettingsView() : state.tab === "alerts" ? alertsView() : state.tab === "reports" ? reportsView() : adsView(state.tab);
   }
+
+  // ---- Buy through us: our team manages buying a car for a customer ----
+  var DEAL_OPTS = [["new", "New request"], ["contacted", "Talking to seller"], ["inspection", "Inspection booked"], ["agreed", "Price agreed"], ["completed", "Completed"], ["cancelled", "Cancelled"]];
+  function dealsView(){
+    if (!state.deals.length) return '<p class="empty">No buy requests yet. Buyers send them with "Buy through Tanzania Car Dealers" on any car page.</p>';
+    var rank = { new: 0, contacted: 1, inspection: 2, agreed: 3, completed: 8, cancelled: 9 };
+    return '<p class="hint">Customers who want us to manage the purchase. Contact the buyer, then the seller; check the car and papers, book an inspection, agree the price and handle payment and transfer. The <b>message to buyer</b> shows in their account.</p>' +
+      state.deals.slice().sort(function(a, b){ return (rank[a.status] - rank[b.status]) || b.createdAt.localeCompare(a.createdAt); }).map(function(d){
+        var waBuyer = TCD.waLink(d.buyerPhone, "Hello " + d.buyerName + ", this is Tanzania Car Dealers about the " + d.adTitle + " you want us to buy for you (" + d.ref + ").");
+        var waSeller = d.sellerPhone ? TCD.waLink(d.sellerPhone, "Hello " + (d.sellerName || "") + ", this is Tanzania Car Dealers. We have a buyer for your " + d.adTitle + " listed on our site. Is it still available?") : "";
+        return '<div class="row" style="grid-template-columns:1fr auto" data-deal="' + d.id + '"><div>' +
+          '<h3>' + esc(d.ref) + ' · ' + esc(d.adTitle) + '</h3>' +
+          '<div style="margin:4px 0"><span class="pill ' + (d.status === "new" ? "pending" : d.status === "completed" ? "approved" : d.status === "cancelled" ? "off" : "feat") + '">' + esc((DEAL_OPTS.filter(function(o){ return o[0] === d.status; })[0] || [0, d.status])[1].toUpperCase()) + '</span>' + (d.house ? '<span class="pill">OUR STOCK</span>' : "") + '</div>' +
+          '<div class="meta">Listed ' + TCD.money(d.adPrice) + (d.offer ? ' · buyer offers <b>' + TCD.money(d.offer) + '</b>' : "") + ' · <a target="_blank" href="/car?id=' + esc(d.adId) + '">view car</a></div>' +
+          '<div class="meta">Buyer: <b>' + esc(d.buyerName) + '</b> · +' + esc(d.buyerPhone) + ' · prefers ' + (d.contactBy === "call" ? "a call" : "WhatsApp") + ' · ' + new Date(d.createdAt).toLocaleString() + '</div>' +
+          (d.house ? "" : '<div class="meta">Seller: ' + esc(d.sellerName || "?") + (d.sellerPhone ? ' · +' + esc(d.sellerPhone) : "") + '</div>') +
+          (d.message ? '<div class="meta" style="white-space:pre-line;margin-top:4px">“' + esc(d.message) + '”</div>' : "") +
+          ((d.notes || []).length ? d.notes.slice(-4).map(function(n){ return '<div class="hint" style="margin:3px 0 0">' + new Date(n.at).toLocaleString() + ' · <b>' + esc(n.by) + '</b>: ' + esc(n.text) + '</div>'; }).join("") : "") +
+          '<div style="margin-top:8px"><label style="font-size:13px">Message to buyer (they see it in their account)</label><div style="display:flex;gap:6px"><input data-deal-msg value="' + esc(d.staffMessage || "") + '" placeholder="e.g. Inspection on Saturday 10am at the seller garage"><button class="btn btn-ghost btn-sm" data-act="deal-msg">Save</button></div></div>' +
+          '</div><div class="controls"><div class="btns">' +
+          '<a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="' + esc(waBuyer) + '">WhatsApp buyer</a>' + (waSeller ? '<a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="' + esc(waSeller) + '">WhatsApp seller</a>' : "") +
+          '<a class="btn btn-ghost btn-sm" href="tel:+' + esc(d.buyerPhone) + '">Call buyer</a></div>' +
+          '<select data-act="deal-status">' + DEAL_OPTS.map(function(o){ return '<option value="' + o[0] + '"' + (o[0] === d.status ? " selected" : "") + '>' + o[1] + '</option>'; }).join("") + '</select>' +
+          '<button class="btn btn-ghost btn-sm" data-act="deal-note">Add staff note</button></div></div>';
+      }).join("");
+  }
+  $("view").addEventListener("change", function(e){
+    var sel = e.target; if (sel.dataset.act !== "deal-status") return;
+    var row = sel.closest("[data-deal]");
+    api("updateDeal", { id: row.dataset.deal, status: sel.value }).then(function(j){ state.deals = replace(state.deals, j.deal); render(); flash("Status updated"); }).catch(function(ex){ flash(ex.message, "err"); });
+  });
+  $("view").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-act]"); if (!b) return;
+    var row = b.closest("[data-deal]"); if (!row) return;
+    var save = function(data, msg){ api("updateDeal", Object.assign({ id: row.dataset.deal }, data)).then(function(j){ state.deals = replace(state.deals, j.deal); render(); flash(msg); }).catch(function(ex){ flash(ex.message, "err"); }); };
+    if (b.dataset.act === "deal-msg") save({ staffMessage: row.querySelector("[data-deal-msg]").value }, "Message saved; the buyer sees it");
+    if (b.dataset.act === "deal-note") { var n = prompt("Staff note (only staff see this):"); if (n) save({ note: n }, "Note added"); }
+  });
 
   // ---- Payments: orders to confirm, packages, Lipa numbers, Selcom ----
   var OSTATUS = { pending: ["NOT PAID YET", "off"], pushed: ["WAITING FOR PIN", "pending"], awaiting_check: ["CHECK PAYMENT", "pending"], paid: ["PAID", "approved"],

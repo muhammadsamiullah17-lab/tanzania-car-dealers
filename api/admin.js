@@ -7,6 +7,7 @@ import { users, ROLES, cleanUsername, checkNewPassword, hashPassword, verifyPass
 import { members, staffView, readDoc, removeMember } from "../lib/members.js";
 import { jcars, jrequests, getSettings, saveSettings, SALE_TYPES, JSTATUSES, REQUEST_STATUSES } from "../lib/japan.js";
 import { alerts, reports, inspectionFields } from "../lib/buyers.js";
+import { deals, DEAL_STATUSES } from "../lib/deals.js";
 import { orders, getPaySettings, adminPaySettings, savePaySettings, activateOrder, refreshSelcom } from "../lib/payments.js";
 
 const BODIES = ["Hatchback", "Sedan", "Wagon", "Coupe", "SUV", "MiniVan", "Van", "Pickup", "Truck", "Bus", "Other"];
@@ -261,6 +262,31 @@ const actions = {
       m.updatedAt = new Date().toISOString();
       await members.save(m);
       return { ok: true };
+    },
+  },
+
+  // ---- Buy through us: deals our team manages for buyers ----
+
+  listDeals: { run: async () => ({ deals: (await deals.all()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }) },
+
+  // status, staffMessage (shown to the buyer) and/or a staff-only note.
+  updateDeal: {
+    async run(b, me) {
+      const d = await deals.get(b.id);
+      if (!d) throw fail("Request not found", 404);
+      const now = new Date().toISOString();
+      if (b.status) {
+        if (!DEAL_STATUSES.includes(b.status)) throw fail("Bad status");
+        if (b.status !== d.status) d.notes = (d.notes || []).concat({ by: me.username, at: now, text: "Status: " + b.status });
+        d.status = b.status;
+      }
+      if (b.staffMessage !== undefined) d.staffMessage = text(b.staffMessage, 500);
+      if (b.note) d.notes = (d.notes || []).concat({ by: me.username, at: now, text: text(b.note, 1000) });
+      if (b.assignTo !== undefined) d.assignedTo = text(b.assignTo, 30);
+      d.updatedAt = now;
+      d.updatedBy = me.username;
+      await deals.save(d);
+      return { deal: d };
     },
   },
 

@@ -12,7 +12,7 @@
 <style>
 .status{border-radius:16px;padding:18px 20px;margin-bottom:20px;border:1px solid var(--line);background:var(--card)}
 .status > b:first-child{font-size:18px;display:block;margin-bottom:4px}
-.status.verified{border-color:var(--green);background:var(--soft)}
+.status.verified{display:block;font-size:15px;font-weight:400;color:var(--text);padding:18px 20px;border-radius:16px;border-color:var(--green);background:var(--soft)}
 .status.review{border-color:#f1d27a;background:color-mix(in srgb,#fcd116 14%,var(--card))}
 .status.rejected{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 9%,var(--card))}
 .doc{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -48,7 +48,7 @@
   TCD.chrome("");
   var esc = TCD.esc, root = document.getElementById("root");
   var ID_TYPES = ["NIDA (National ID)", "Passport", "Driving licence", "Voter ID"];
-  var state = { user: null, docKinds: [], ads: [], orders: [] };
+  var state = { user: null, docKinds: [], ads: [], orders: [], deals: [] };
 
   if (!TCD.session.get().token || TCD.session.get().kind !== "m") { location.href = "/login?next=/account"; return; }
   function call(action, data){
@@ -66,6 +66,8 @@
 
   function statusBox(u){
     var phone = "+" + u.phone;
+    if (u.type === "buyer") return '<div class="status verified"><b>Welcome! Find your next car</b>Save cars with ♥, contact sellers directly, or press <b>🤝 Buy through Tanzania Car Dealers</b> on any car and our team manages the purchase for you.' +
+      '<div class="btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn btn-main" href="/#stock">Browse cars</a><a class="btn btn-ghost" href="/saved">♥ Saved cars</a><a class="btn btn-ghost" href="/japan">🇯🇵 Import from Japan</a></div></div>';
     if (u.status === "verified") return '<div class="status verified"><b>✓ Your account is verified</b>You can now post cars for sale. Each car is checked by our team before it goes live.' +
       '<div style="margin-top:12px"><a class="btn btn-main" href="/sell">Post a car</a>' + (u.dealerId ? ' <a class="btn btn-ghost" href="/dealer?id=' + esc(u.dealerId) + '">My dealer page</a>' : "") + '</div></div>';
     if (u.status === "review") return '<div class="status review"><b>Waiting for verification</b>Thank you! Our team is checking your documents and will call or WhatsApp you on <b>' + esc(phone) + '</b> to confirm. This usually takes 1 working day.</div>';
@@ -157,17 +159,42 @@
       '<div class="full"><button class="btn btn-main">Save password</button></div></div></form>';
   }
 
+  var DEAL_STEPS = ["new", "contacted", "inspection", "agreed", "completed"];
+  function dealsPanel(){
+    if (!state.deals.length) return state.user.type === "buyer" ? '<div class="panel"><h2 style="font-size:20px">Cars we are buying for you</h2><p class="hint">None yet. On any car page, press <b>🤝 Buy through Tanzania Car Dealers</b> and we take care of checking the car, the price, payment and papers.</p></div>' : "";
+    return '<div class="panel"><h2 style="font-size:20px">Cars we are buying for you</h2>' + state.deals.map(function(d){
+      var step = DEAL_STEPS.indexOf(d.status);
+      return '<div class="myad" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>' + esc(d.adTitle) + '</b><div class="hint" style="margin:2px 0 0">' + esc(d.ref) + " · listed " + TCD.money(d.adPrice) + (d.offer ? " · your offer " + TCD.money(d.offer) : "") + " · " + new Date(d.createdAt).toLocaleDateString() + '</div></div>' +
+        '<div><span class="pill ' + (d.status === "completed" ? "approved" : d.status === "cancelled" ? "sold" : "pending") + '">' + esc(d.statusLabel) + '</span> <a class="btn btn-ghost btn-sm" href="/car?id=' + esc(d.adId) + '">Car</a></div></div>' +
+        (d.status !== "cancelled" ? '<div class="deal-steps">' + ["Request", "Talking to seller", "Inspection", "Price agreed", "Done"].map(function(s, i){ return '<span class="' + (i <= step ? "on" : "") + '">' + s + '</span>'; }).join("") + '</div>' : "") +
+        (d.staffMessage ? '<p class="notice ok" style="margin:8px 0 0">💬 ' + esc(d.staffMessage) + '</p>' : "") + '</div>';
+    }).join("") + '</div>';
+  }
+  function buyerDetails(u){
+    return '<form id="details" class="panel"><h2 style="font-size:20px">Your details</h2><div class="form-grid">' +
+      '<div><label>Full name *</label><input name="fullName" maxlength="80" value="' + esc(u.fullName) + '"></div>' +
+      '<div><label>City</label><input name="city" maxlength="40" value="' + esc(u.city) + '"></div>' +
+      '<div><label>Email</label><input name="email" type="email" maxlength="120" value="' + esc(u.email) + '"></div>' +
+      '<div><label>Mobile number</label><input value="+' + esc(u.phone) + '" disabled></div>' +
+      '<div class="full"><button class="btn btn-main">Save details</button></div></div></form>' +
+      '<div class="panel"><h2 style="font-size:20px">Want to sell a car?</h2><p class="hint">Turn this into a seller account. We then check your ID (or business documents) and call you before you can post.</p>' +
+      '<div class="btns" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" data-become="private">I am a private person</button><button class="btn btn-ghost" data-become="dealer">I am a car dealer</button></div></div>';
+  }
+
   function render(){
-    var u = state.user;
-    document.getElementById("hello").textContent = "Hello, " + (u.type === "dealer" && u.business && u.business.name ? u.business.name : u.fullName.split(" ")[0]);
-    root.innerHTML = statusBox(u) + '<div class="stack">' + pwPanel() + adsPanel() + paymentsPanel() + detailsForm(u) + docsPanel(u) + submitPanel(u) + '</div>';
+    var u = state.user, name = u.type === "dealer" && u.business && u.business.name ? u.business.name : u.fullName.split(" ")[0];
+    document.getElementById("hello").textContent = u.type === "dealer" ? "Dealer dashboard · " + name : "Hello, " + name;
+    document.title = (u.type === "dealer" ? "Dealer dashboard" : "My account") + " · Tanzania Car Dealers";
+    root.innerHTML = u.type === "buyer"
+      ? statusBox(u) + '<div class="stack">' + pwPanel() + dealsPanel() + buyerDetails(u) + '</div>'
+      : statusBox(u) + '<div class="stack">' + pwPanel() + adsPanel() + paymentsPanel() + dealsPanel() + detailsForm(u) + docsPanel(u) + submitPanel(u) + '</div>';
   }
 
   function load(){
-    return Promise.all([call("me"), call("myAds")]).then(function(r){
-      state.user = r[0].user; state.docKinds = r[0].docKinds; state.ads = r[1].ads; render();
+    return Promise.all([call("me"), call("myAds"), call("myDeals")]).then(function(r){
+      state.user = r[0].user; state.docKinds = r[0].docKinds; state.ads = r[1].ads; state.deals = r[2].deals; render();
       if (state.user.status === "verified") TCD.api("pay", "myOrders").then(function(j){ state.orders = j.orders; render(); }).catch(function(){});
-      if (/new=1/.test(location.search)) { flash("Account created! Now add your details and documents."); history.replaceState(null, "", "/account"); }
+      if (/new=1/.test(location.search)) { flash(state.user.type === "buyer" ? "Welcome! Your account is ready." : "Account created! Now add your details and documents."); history.replaceState(null, "", "/account"); }
     }).catch(function(ex){ root.innerHTML = '<p class="notice err">' + esc(ex.message) + '</p>'; });
   }
 
@@ -205,6 +232,15 @@
         .then(function(j){ state.user = j.user; render(); flash("Document uploaded."); })
         .catch(function(ex){ render(); flash(ex.message, "err"); });
     });
+  });
+
+  root.addEventListener("click", function(e){
+    var bs = e.target.closest("[data-become]"); if (!bs) return;
+    var asDealer = bs.dataset.become === "dealer", businessName = "";
+    if (asDealer) { businessName = prompt("Your business name (as on your business licence):"); if (!businessName) return; }
+    else if (!confirm("Change to a seller account? You will upload your ID and selfie, and our team will call you to verify.")) return;
+    call("becomeSeller", { asDealer: asDealer, businessName: businessName }).then(function(){ return load(); }).then(function(){ flash("Done! Now add your details and documents, then send them for verification."); })
+      .catch(function(ex){ flash(ex.message, "err"); });
   });
 
   root.addEventListener("click", function(e){

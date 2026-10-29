@@ -5,7 +5,9 @@ import { adFields, checkPrice } from "../lib/adfields.js";
 import { issueToken, readToken } from "../lib/auth.js";
 import { users, publicUser } from "../lib/users.js";
 import { checkNewPassword, hashPassword, verifyPassword } from "../lib/secure.js";
-import { members, cleanPhone, profileFields, newMember, missing, selfView, saveDoc, DOC_KINDS } from "../lib/members.js";
+import { members, cleanPhone, profileFields, newMember, missing, selfView, saveDoc, DOC_KINDS, ACCOUNT_TYPES } from "../lib/members.js";
+import { deals, buyerView } from "../lib/deals.js";
+import { newId } from "../lib/store.js";
 
 function fail(message, status = 400) {
   return Object.assign(new Error(message), { status });
@@ -18,10 +20,10 @@ function editable(me) {
 
 const open = {
   async signup(b) {
-    const type = b.type === "dealer" ? "dealer" : "private";
+    const type = ACCOUNT_TYPES.includes(b.type) ? b.type : "private";
     const phone = cleanPhone(b.phone);
     checkNewPassword(b.password);
-    if (!b.consent) throw fail("Please agree to the verification terms.");
+    if (!b.consent) throw fail(type === "buyer" ? "Please agree to the terms." : "Please agree to the verification terms.");
     if (await members.byPhone(phone)) throw fail("An account with this phone number already exists. Please log in.", 409);
     const m = newMember(type, phone, b.password, profileFields(type, b));
     await members.save(m);
@@ -75,7 +77,53 @@ const actions = {
     return { user: selfView(me) };
   },
 
+  // A buyer who wants to sell too: becomes a private seller and goes through verification.
+  async becomeSeller(b, me) {
+    if (me.type !== "buyer") throw fail("You already have a seller account.");
+    me.type = b.asDealer ? "dealer" : "private";
+    if (me.type === "dealer") me.business = { name: String(b.businessName || "").trim().slice(0, 100), tin: "", licenceNo: "", brelaNo: "", address: "" };
+    if (me.type === "dealer" && !me.business.name) throw fail("Please enter the business name.");
+    me.status = "incomplete";
+    me.updatedAt = new Date().toISOString();
+    await members.save(me);
+    return { user: selfView(me) };
+  },
+
+  // "Buy through us": our team manages buying this car for the member.
+  async requestDeal(b, me) {
+    let car = null;
+    // Our own stock (cars.js, ids h1, h2…) only lives in the browser; the page sends its title and price.
+    if (/^h\d+$/.test(String(b.adId || ""))) {
+      const m = /^(\d{4}) ([A-Za-z-]+) ([\w .()/-]+)$/.exec(String(b.title || "").trim().slice(0, 120));
+      if (m) car = { house: true, year: m[1], make: m[2], model: m[3], price: Math.round(Number(b.price)) || 0 };
+    } else {
+      const ad = await ads.get(b.adId);
+      if (ad && ad.status === "approved") car = ad;
+    }
+    if (!car) throw fail("This car is no longer for sale.", 404);
+    if (car.memberId === me.id) throw fail("This is your own car.");
+    const open = (await deals.all()).find((d) => d.memberId === me.id && d.adId === String(b.adId) && !["completed", "cancelled"].includes(d.status));
+    if (open) throw fail("You already asked us about this car. We will contact you soon.");
+    const offer = b.offer ? Math.round(Number(String(b.offer).replace(/[^\d]/g, ""))) : null;
+    const id = newId();
+    const d = {
+      id, ref: "BUY-" + id.slice(0, 6).toUpperCase(), adId: String(b.adId), house: Boolean(car.house),
+      adTitle: car.year + " " + car.make + " " + car.model, adPrice: car.price, sellerName: car.house ? "Tanzania Car Dealers" : car.businessName || car.sellerName || "", sellerPhone: car.sellerPhone || "",
+      memberId: me.id, buyerName: me.type === "dealer" && me.business ? me.business.name : me.fullName, buyerPhone: me.phone,
+      offer: offer && offer > 0 ? offer : null, message: String(b.message || "").trim().slice(0, 1000),
+      contactBy: ["whatsapp", "call"].includes(b.contactBy) ? b.contactBy : "whatsapp",
+      status: "new", staffMessage: "", notes: [], createdAt: new Date().toISOString(),
+    };
+    await deals.save(d);
+    return { deal: buyerView(d) };
+  },
+
+  async myDeals(b, me) {
+    return { deals: (await deals.all()).filter((d) => d.memberId === me.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(buyerView) };
+  },
+
   async submitForReview(b, me) {
+    if (me.type === "buyer") throw fail("Buyer accounts don't need verification. To sell a car, choose Become a seller.");
     editable(me);
     const gaps = missing(me);
     if (gaps.length) throw fail("Still missing: " + gaps.join(", ") + ".");

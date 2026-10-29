@@ -34,6 +34,12 @@
   TCD.chrome("");
   var next = new URLSearchParams(location.search).get("next");
   if (next && !/^\/[a-z]/.test(next)) next = null; // only local paths
+  // Already logged in? Go to your own page: staff to Admin, customers and dealers to their account.
+  var s = TCD.session.get();
+  if (s.token) {
+    TCD.api(s.kind === "s" ? "admin" : "account", "me").then(function(){ location.replace(next || (s.kind === "s" ? "/admin" : "/account")); })
+      .catch(function(){ TCD.session.clear(); });
+  }
   TCD.api("admin", "status").then(function(s){ document.getElementById("setup-note").hidden = !s.needsSetup; }).catch(function(){});
   document.getElementById("forgot").href = TCD.waLink(window.SITE.whatsapp, "Hello, I forgot my Tanzania Car Dealers password. My phone number is ");
   document.getElementById("form").addEventListener("submit", function(e){

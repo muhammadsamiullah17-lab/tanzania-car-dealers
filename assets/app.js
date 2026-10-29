@@ -195,9 +195,8 @@
 
   function loginButton() {
     if (/^\/(admin|login|account)/.test(location.pathname)) return "";
-    var kind = session.get().token ? session.get().kind : null;
-    var label = t(kind === "s" ? "Admin panel" : kind === "m" ? "My account" : "Log in");
-    var href = kind === "s" ? "/admin" : kind === "m" ? "/account" : "/login";
+    // Always "Log in": the Log in page sends people who are already logged in straight to their own page.
+    var label = t("Log in"), href = "/login";
     return '<a class="btn btn-ghost btn-login" href="' + href + '" aria-label="' + label + '" title="' + label + '">' +
       '<svg class="wa-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v3h16v-3c0-2.8-3.6-5-8-5z"/></svg>' +
       '<span class="label">' + label + '</span></a>';

@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/style.css">
 <style>
-.choice{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.choice{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
 .choice label{border:2px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;font-weight:500;display:block;margin:0}
 .choice label b{display:block;font-size:17px;margin-bottom:4px}
 .choice input{position:absolute;opacity:0}
@@ -21,10 +21,11 @@
 <section>
   <div class="wrap" style="max-width:760px">
     <h1 style="font-size:32px;margin:0 0 6px">Create an account</h1>
-    <p class="sub">To keep buyers safe, every seller is checked by our team before they can post. You'll upload your documents on the next step, then we call you to confirm.</p>
+    <p class="sub">Buying? Create a free account in one minute. Selling? To keep buyers safe, every seller is checked by our team: you upload your documents on the next step, then we call you to confirm.</p>
     <form id="form" class="panel" novalidate>
       <div class="choice">
-        <label><input type="radio" name="type" value="private" checked><b>Private person</b>Selling my own car. You'll need your ID and a selfie.</label>
+        <label><input type="radio" name="type" value="buyer" checked><b>I want to buy a car</b>Save cars, contact sellers, or let us manage the purchase for you. No documents needed.</label>
+        <label><input type="radio" name="type" value="private"><b>Private person</b>Selling my own car. You'll need your ID and a selfie.</label>
         <label><input type="radio" name="type" value="dealer"><b>Car dealer / company</b>Showroom or business. You'll need your business licence, TIN and owner's ID.</label>
       </div>
       <div class="form-grid">
@@ -36,10 +37,10 @@
         <div><label for="password">Password *</label><input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"><div class="hint">At least 8 characters.</div></div>
         <div><label for="password2">Repeat password *</label><input id="password2" type="password" required minlength="8" autocomplete="new-password"></div>
         <div class="full"><label style="display:flex;gap:10px;align-items:flex-start;font-weight:500"><input type="checkbox" name="consent" id="consent" style="width:auto;margin-top:4px">
-          <span>I agree that Tanzania Car Dealers may check my ID, business documents and phone number to verify my account, and keep them securely for that purpose. My details are true.</span></label></div>
+          <span id="consent-text">I agree that Tanzania Car Dealers may check my ID, business documents and phone number to verify my account, and keep them securely for that purpose. My details are true.</span></label></div>
         <div class="full"><div id="err" class="notice err" hidden></div>
           <button class="btn btn-main" id="btn" style="width:100%">Create account</button>
-          <p class="hint" style="text-align:center">Already have an account? <a href="/login"><b>Log in</b></a></p></div>
+          <p class="hint" style="text-align:center">Already have an account? <a href="/login" id="login-link"><b>Log in</b></a></p></div>
       </div>
     </form>
   </div>
@@ -51,12 +52,17 @@
 (function(){
   TCD.chrome("sell");
   var form = document.getElementById("form"), f = form.elements;
-  var type = new URLSearchParams(location.search).get("type");
-  if (type === "dealer") f.type.value = "dealer";
+  var params = new URLSearchParams(location.search), type = params.get("type"), next = params.get("next");
+  if (next && !/^\/[a-z]/.test(next)) next = null; // only local paths
+  if (["dealer", "private", "buyer"].indexOf(type) !== -1) f.type.value = type;
   function sync(){
     var dealer = f.type.value === "dealer";
     form.querySelectorAll(".dealer-only").forEach(function(el){ el.hidden = !dealer; });
     document.getElementById("name-label").textContent = dealer ? "Owner / manager full name *" : "Full name *";
+    var buyer = f.type.value === "buyer";
+    document.getElementById("consent-text").textContent = buyer
+      ? "I agree that Tanzania Car Dealers may contact me about cars I ask about, and keep my details securely. My details are true."
+      : "I agree that Tanzania Car Dealers may check my ID, business documents and phone number to verify my account, and keep them securely for that purpose. My details are true.";
   }
   form.querySelectorAll('input[name="type"]').forEach(function(r){ r.addEventListener("change", sync); });
   sync();
@@ -73,7 +79,7 @@
       city: f.city.value, email: f.email.value, password: f.password.value, consent: f.consent.checked,
     }).then(function(j){
       TCD.session.set(j.token, j.kind);
-      location.href = "/account?new=1";
+      location.href = next || "/account?new=1";
     }).catch(function(ex){ show(ex.message); btn.disabled = false; btn.textContent = "Create account"; });
   });
 })();

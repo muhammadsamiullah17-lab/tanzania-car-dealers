@@ -27,6 +27,12 @@ Car marketplace for Tanzania. Every seller (private person or car dealer) create
 - **Reports** tab: reports from buyers, resolve with a note.
 - **Swahili**: EN/SW button in the header translates the public pages (header, home, search, cards, car page, saved). Strings live in `SW` in `assets/app.js`; pages mark text with `data-t` / `data-tp`.
 
+## Accounts and buying
+
+- The header always shows **Log in**. `/login` takes a phone number (customers) or staff ID; staff go to `/admin`, customers to `/account` (titled **Dealer dashboard** for dealers). Someone already logged in who opens `/login` goes straight to their page.
+- Three account types at `/signup`: **buyer** (no documents, active at once), **private seller** and **dealer** (both verified before posting). A buyer can later **Become a seller** from their account.
+- Every car page offers two ways to buy: **contact the seller directly** (WhatsApp / call) or **🤝 Buy through Tanzania Car Dealers** (`lib/deals.js`): the buyer (logged in) sends a request with an optional offer; staff manage it in Admin › **Buy requests** (WhatsApp buyer and seller, status, a message the buyer sees, staff-only notes). Buyers follow progress in their account.
+
 ## Payments
 
 - Customers (verified accounts) buy **Featured ad** packages (7/14/30 days) for their live cars and, if they are dealers, **Silver/Gold dealer** packages (30 days) at `/pay`, from **My account**.

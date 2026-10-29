@@ -199,3 +199,8 @@ details#more summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--m
 .pay-steps li{counter-increment:s;padding:8px 0 8px 40px;position:relative}
 .pay-steps li::before{content:counter(s);position:absolute;left:0;top:6px;width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;font-weight:700;display:grid;place-items:center}
 .bigcode{font-size:24px;font-weight:800;letter-spacing:.04em;font-family:ui-monospace,monospace}
+.deal-steps{display:flex;gap:4px;margin-top:10px;flex-wrap:wrap}
+.deal-steps span{flex:1;min-width:80px;font-size:12px;text-align:center;padding:5px 4px;border-radius:6px;background:var(--line);color:var(--muted);font-weight:600}
+.deal-steps span.on{background:var(--green);color:#fff}
+.way-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}
+.through-us{border-color:var(--green)}
