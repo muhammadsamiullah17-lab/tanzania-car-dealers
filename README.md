@@ -27,6 +27,16 @@ Car marketplace for Tanzania. Every seller (private person or car dealer) create
 - **Reports** tab: reports from buyers, resolve with a note.
 - **Swahili**: EN/SW button in the header translates the public pages (header, home, search, cards, car page, saved). Strings live in `SW` in `assets/app.js`; pages mark text with `data-t` / `data-tp`.
 
+## Payments
+
+- Customers (verified accounts) buy **Featured ad** packages (7/14/30 days) for their live cars and, if they are dealers, **Silver/Gold dealer** packages (30 days) at `/pay`, from **My account**.
+  - Silver: dealer shown first on the Dealers page with a badge. Gold: the same, plus all the dealer's live cars are Featured.
+  - Days stack on top of time already left.
+- Two ways to pay, set in Admin › **Payment settings** (managers/admins; Selcom keys admins only):
+  - **Lipa numbers** (M-Pesa, Mixx by Yas, Airtel Money, HaloPesa): the customer pays the shown number with the order reference and enters the SMS transaction code; staff check and press **Confirm payment** in Admin › **Payments**. Codes can't be reused.
+  - **Selcom** (`lib/selcom.js`): vendor ID, API key, API secret and base URL (stored encrypted; or set `SELCOM_API_KEY`, `SELCOM_API_SECRET`, `SELCOM_VENDOR`, `SELCOM_BASE_URL` in Vercel, which win). Creates an order, pushes a PIN prompt to the phone, and activates when Selcom's order status is `COMPLETED`. The callback `/api/pay?webhook=1` is never trusted on its own: the order is always re-checked with Selcom.
+- Orders: `pending` → (`pushed` | `awaiting_check`) → `paid` → `activated`, or `rejected` / `failed` / `cancelled`.
+
 ## Import from Japan
 
 - `/japan`: cars staff can source from Japan (stock or auction), filters, an **import cost calculator**, and a **Find me a car** request form for logged-in customers.

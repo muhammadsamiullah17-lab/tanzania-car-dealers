@@ -40,7 +40,8 @@
     var counts = {};
     m.cars.forEach(function(c){ if (c.dealerId) counts[c.dealerId] = (counts[c.dealerId] || 0) + 1; });
     var house = { id: "", name: window.SITE.name, city: window.SITE.location.split(",")[0], verified: true, house: true, about: "Our own showroom stock." };
-    var all = [house].concat(m.dealers);
+    var paid = m.dealers.filter(function(d){ return d.tier; }), rest = m.dealers.filter(function(d){ return !d.tier; });
+    var all = paid.concat([house], rest);
     counts[""] = TCD.houseCars().length;
     Array.from(new Set(all.map(function(d){ return d.city; }))).filter(Boolean).sort().forEach(function(c){ fCity.add(new Option(c, c)); });
 
@@ -52,7 +53,7 @@
       grid.innerHTML = list.length ? list.map(function(d){
         var href = d.house ? "/#stock" : "/dealer?id=" + d.id;
         return '<a class="panel dealer-card" href="' + href + '"><span class="logo-big">' + esc(d.name.charAt(0)) + '</span>' +
-          '<b style="font-size:18px">' + esc(d.name) + '</b>' + (d.verified ? '<span><span class="verified">✓ Verified dealer</span></span>' : "") +
+          '<b style="font-size:18px">' + esc(d.name) + '</b>' + (d.verified || d.tier ? '<span>' + (d.tier ? '<span class="tier ' + d.tier + '">' + (d.tier === "gold" ? "★ Gold dealer" : "★ Silver dealer") + '</span> ' : "") + (d.verified ? '<span class="verified">✓ Verified dealer</span>' : "") + '</span>' : "") +
           '<span class="seller">' + esc([d.address, d.city].filter(Boolean).join(", ")) + '</span>' +
           '<span class="seller">' + (counts[d.id] || 0) + ((counts[d.id] || 0) === 1 ? ' car' : ' cars') + ' for sale</span></a>';
       }).join("") : '<p class="empty">No dealers match.</p>';

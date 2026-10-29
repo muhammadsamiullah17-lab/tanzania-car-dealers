@@ -79,7 +79,7 @@
   TCD.chrome("");
   var esc = TCD.esc, $ = function(id){ return document.getElementById(id); };
   var state = { tab: "pending", ads: [], dealers: [], users: [], members: [], memberFilter: "review", openMember: null, editing: null, editingUser: null, me: null,
-    jcars: [], requests: [], importSettings: null, editingJcar: null, alerts: [], reports: [], inspecting: null };
+    jcars: [], requests: [], importSettings: null, editingJcar: null, alerts: [], reports: [], inspecting: null, orders: [], paySettings: null };
   function isAdmin(){ return state.me && state.me.role === "admin"; }
   function canVerify(){ return state.me && (state.me.role === "admin" || state.me.role === "manager"); }
   var ROLE_LABEL = { admin: "Admin", manager: "Manager", staff: "Staff" };
@@ -129,9 +129,9 @@
   function load(){
     var none = Promise.resolve(null);
     return Promise.all([api("listAds"), api("listDealers"), isAdmin() ? api("listUsers") : none, canVerify() ? api("listMembers") : none,
-      api("listJcars"), api("listRequests"), api("getImportSettings"), api("listAlerts"), api("listReports")]).then(function(r){
+      api("listJcars"), api("listRequests"), api("getImportSettings"), api("listAlerts"), api("listReports"), api("listOrders"), canVerify() ? api("getPaySettings") : none]).then(function(r){
       state.ads = r[0].ads; state.dealers = r[1].dealers; state.users = r[2] ? r[2].users : []; state.members = r[3] ? r[3].members : [];
-      state.jcars = r[4].cars; state.requests = r[5].requests; state.importSettings = r[6].settings; state.alerts = r[7].alerts; state.reports = r[8].reports; render();
+      state.jcars = r[4].cars; state.requests = r[5].requests; state.importSettings = r[6].settings; state.alerts = r[7].alerts; state.reports = r[8].reports; state.orders = r[9].orders; state.paySettings = r[10] ? r[10].settings : null; render();
     }).catch(function(ex){ flash(ex.message, "err"); });
   }
   function start(user){
@@ -146,6 +146,8 @@
   function tabs(){
     var t = [["pending", "Cars waiting"], ["approved", "Live"], ["sold", "Sold"], ["rejected", "Rejected"], ["dealers", "Dealers"]];
     if (canVerify()) t.unshift(["accounts", "Accounts to verify"]);
+    t.push(["payments", "💳 Payments"]);
+    if (canVerify()) t.push(["pay-settings", "Payment settings"]);
     t.push(["alerts", "🔔 Buyer alerts"], ["reports", "⚑ Reports"], ["japan", "🇯🇵 Japan stock"], ["requests", "Import requests"]);
     if (canVerify()) t.push(["import-settings", "Import settings"]);
     if (isAdmin()) t.push(["users", "Staff users"]);
@@ -155,6 +157,8 @@
     $("tabs").innerHTML = tabs().map(function(t){
       var n = t[0] === "dealers" ? state.dealers.length : t[0] === "users" ? state.users.length
         : t[0] === "accounts" ? state.members.filter(function(m){ return m.status === "review"; }).length
+        : t[0] === "payments" ? state.orders.filter(function(o){ return o.status === "awaiting_check"; }).length
+        : t[0] === "pay-settings" ? ""
         : t[0] === "alerts" ? state.alerts.filter(function(a){ return a.active && alertMatches(a).length; }).length
         : t[0] === "reports" ? state.reports.filter(function(r){ return r.status === "open"; }).length
         : t[0] === "japan" ? state.jcars.length : t[0] === "requests" ? state.requests.filter(function(r){ return r.status === "new"; }).length
@@ -164,8 +168,86 @@
     }).join("");
     $("view").innerHTML = state.tab === "dealers" ? dealersView() : state.tab === "users" ? usersView()
       : state.tab === "accounts" ? membersView() : state.tab === "japan" ? jcarsView() : state.tab === "requests" ? requestsView()
-      : state.tab === "import-settings" ? settingsView() : state.tab === "alerts" ? alertsView() : state.tab === "reports" ? reportsView() : adsView(state.tab);
+      : state.tab === "import-settings" ? settingsView() : state.tab === "payments" ? paymentsView() : state.tab === "pay-settings" ? paySettingsView() : state.tab === "alerts" ? alertsView() : state.tab === "reports" ? reportsView() : adsView(state.tab);
   }
+
+  // ---- Payments: orders to confirm, packages, Lipa numbers, Selcom ----
+  var OSTATUS = { pending: ["NOT PAID YET", "off"], pushed: ["WAITING FOR PIN", "pending"], awaiting_check: ["CHECK PAYMENT", "pending"], paid: ["PAID", "approved"],
+    activated: ["ACTIVE", "approved"], rejected: ["REJECTED", "rejected"], failed: ["FAILED", "rejected"], cancelled: ["CANCELLED", "off"] };
+  function paymentsView(){
+    if (!state.orders.length) return '<p class="empty">No payments yet. Customers buy Featured ads and dealer packages from their account.</p>';
+    var order = { awaiting_check: 0, pushed: 1, pending: 2 };
+    var list = state.orders.slice().sort(function(a, b){ return ((order[a.status] ?? 9) - (order[b.status] ?? 9)) || b.createdAt.localeCompare(a.createdAt); });
+    var paidTotal = state.orders.filter(function(o){ return o.status === "activated"; }).reduce(function(s, o){ return s + o.amount; }, 0);
+    return '<p class="hint">Lipa payments: check your phone or statement for the transaction code and amount, then press <b>Confirm</b>. Selcom payments activate by themselves. Total received: <b>' + TCD.money(paidTotal) + '</b></p>' +
+      list.map(function(o){
+        var st = OSTATUS[o.status] || [o.status.toUpperCase(), "off"];
+        return '<div class="row" style="grid-template-columns:1fr auto" data-order="' + o.id + '"><div>' +
+          '<h3>' + esc(o.ref) + ' · ' + TCD.money(o.amount) + '</h3>' +
+          '<div style="margin:4px 0"><span class="pill ' + st[1] + '">' + st[0] + '</span><span class="pill">' + (o.method === "selcom" ? "SELCOM" : "LIPA · " + esc(o.network || "")) + '</span></div>' +
+          '<div class="meta"><b>' + esc(o.packageName) + '</b> for ' + esc(o.itemTitle || "") + (o.adId ? ' · <a target="_blank" href="/car?id=' + esc(o.adId) + '">view car</a>' : "") + '</div>' +
+          '<div class="meta">' + esc(o.memberName || "") + ' · +' + esc(o.memberPhone || "") + (o.payPhone && o.payPhone !== o.memberPhone ? ' · paid from +' + esc(o.payPhone) : "") + ' · ' + new Date(o.createdAt).toLocaleString() + '</div>' +
+          (o.txCode ? '<div class="meta">Transaction code: <b style="font-family:ui-monospace,monospace">' + esc(o.txCode) + '</b> · to ' + esc(o.payTo || "") + '</div>' : "") +
+          (o.selcom && o.selcom.status ? '<div class="meta">Selcom: ' + esc(o.selcom.status) + (o.selcom.reference ? " · ref " + esc(o.selcom.reference) : "") + '</div>' : "") +
+          (o.activeUntil && o.status === "activated" ? '<div class="meta">Active until ' + new Date(o.activeUntil).toLocaleDateString() + (o.activatedBy ? " · by " + esc(o.activatedBy) : "") + '</div>' : "") +
+          (o.rejectReason ? '<div class="meta">Reason: ' + esc(o.rejectReason) + '</div>' : "") + (o.error ? '<div class="meta" style="color:var(--danger)">' + esc(o.error) + '</div>' : "") +
+          '</div><div class="controls"><div class="btns">' +
+          (canVerify() && ["awaiting_check", "pending", "rejected", "failed"].indexOf(o.status) !== -1 && o.method === "lipa" ? '<button class="btn btn-main btn-sm" data-act="order-confirm">Confirm payment</button>' : "") +
+          (canVerify() && ["awaiting_check", "pending"].indexOf(o.status) !== -1 ? '<button class="btn btn-ghost btn-sm" data-act="order-reject">Reject</button>' : "") +
+          (o.method === "selcom" && ["pushed", "pending", "paid"].indexOf(o.status) !== -1 ? '<button class="btn btn-ghost btn-sm" data-act="order-check">Check with Selcom</button>' : "") +
+          '<a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="' + esc(TCD.waLink(o.memberPhone, "Hello " + (o.memberName || "") + ", this is Tanzania Car Dealers about your payment " + o.ref + ".")) + '">WhatsApp</a></div></div></div>';
+      }).join("");
+  }
+  function paySettingsView(){
+    var s = state.paySettings; if (!s) return '<p class="empty">Loading…</p>';
+    var pk = function(type){ return s.packages[type].map(function(p, i){
+      return '<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:6px"><input data-pk="' + type + '" data-i="' + i + '" data-f="name" value="' + esc(p.name) + '"><input data-pk="' + type + '" data-i="' + i + '" data-f="days" type="number" min="1" value="' + p.days + '" title="days"><input data-pk="' + type + '" data-i="' + i + '" data-f="price" type="number" min="0" step="1000" value="' + p.price + '" title="price TZS"></div>'; }).join(""); };
+    var sel = s.selcom, admin = isAdmin();
+    return '<form id="pay-form" class="panel"><h2 style="font-size:20px">Payment settings</h2>' +
+      '<p class="hint">' + (s.updatedAt ? "Last saved " + new Date(s.updatedAt).toLocaleString() + " by " + esc(s.updatedBy) + "." : "Not saved yet: these are the suggested defaults.") + '</p>' +
+      '<h3 style="margin:16px 0 6px">Featured ad packages</h3><div class="hint" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px"><span>Name</span><span>Days</span><span>Price (TZS)</span></div>' + pk("feature") +
+      '<h3 style="margin:16px 0 6px">Dealer packages</h3><p class="hint" style="margin:0 0 6px">First = Silver (shown first, badge). Second = Gold (also features all their live cars).</p>' + pk("dealer") +
+      '<h3 style="margin:20px 0 6px">Lipa numbers (pay to your business number)</h3><p class="hint" style="margin:0 0 8px">Customers pay to these numbers and type the SMS code; staff confirm in the Payments tab. Leave empty to hide a network.</p>' +
+      s.lipa.map(function(l, i){ return '<div style="display:grid;grid-template-columns:130px 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:6px"><b>' + esc(l.network) + '</b>' +
+        '<input data-lipa="' + i + '" data-f="number" placeholder="Lipa / merchant number" value="' + esc(l.number) + '"><input data-lipa="' + i + '" data-f="accountName" placeholder="Account name shown to customers" value="' + esc(l.accountName) + '">' +
+        '<label style="display:flex;gap:6px;align-items:center;font-weight:500;margin:0"><input type="checkbox" data-lipa="' + i + '" data-f="enabled" style="width:auto"' + (l.enabled ? " checked" : "") + '> On</label></div>'; }).join("") +
+      '<h3 style="margin:20px 0 6px">Selcom automatic payments</h3>' +
+      (admin ? '<p class="hint" style="margin:0 0 8px">From Selcom (support@selcom.net): vendor/till ID, API key, API secret and base URL. Keys are stored encrypted and never shown again; type a new one to replace it.' + (sel.fromEnv ? " <b>Keys are also set in Vercel; those are used.</b>" : "") + '</p>' +
+        '<div class="form-grid"><div><label>Vendor / till ID</label><input name="vendor" value="' + esc(sel.vendor) + '"></div><div><label>Base URL</label><input name="baseUrl" placeholder="https://… (from Selcom)" value="' + esc(sel.baseUrl) + '"></div>' +
+        '<div><label>API key ' + (sel.apiKeySaved ? '<span class="pill approved">SAVED</span>' : "") + '</label><input name="apiKey" type="password" autocomplete="off" placeholder="' + (sel.apiKeySaved ? "•••••• (type to replace)" : "") + '"></div>' +
+        '<div><label>API secret ' + (sel.apiSecretSaved ? '<span class="pill approved">SAVED</span>' : "") + '</label><input name="apiSecret" type="password" autocomplete="off" placeholder="' + (sel.apiSecretSaved ? "•••••• (type to replace)" : "") + '"></div>' +
+        '<div class="full"><label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" name="selEnabled" style="width:auto"' + (sel.enabled ? " checked" : "") + '> Switch on Selcom payments for customers ' + (sel.ready ? '<span class="pill approved">KEYS COMPLETE</span>' : '<span class="pill off">KEYS MISSING</span>') + '</label>' +
+        (sel.apiKeySaved || sel.apiSecretSaved ? '<label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" name="clearKeys" style="width:auto"> Delete saved Selcom keys</label>' : "") + '</div></div>'
+        : '<p class="hint">Only admins can change Selcom settings. Status: ' + (sel.enabled && sel.ready ? "switched on" : "off") + '.</p>') +
+      '<button class="btn btn-main" style="margin-top:18px">Save payment settings</button></form>';
+  }
+  $("view").addEventListener("submit", function(e){
+    if (e.target.id !== "pay-form") return;
+    e.preventDefault();
+    var fm = e.target, s = JSON.parse(JSON.stringify(state.paySettings)), f = fm.elements;
+    fm.querySelectorAll("[data-pk]").forEach(function(inp){ var p = s.packages[inp.dataset.pk][Number(inp.dataset.i)]; p[inp.dataset.f] = inp.dataset.f === "name" ? inp.value : Number(inp.value); });
+    fm.querySelectorAll("[data-lipa]").forEach(function(inp){ var l = s.lipa[Number(inp.dataset.lipa)]; l[inp.dataset.f] = inp.type === "checkbox" ? inp.checked : inp.value; });
+    var body = { packages: s.packages, lipa: s.lipa };
+    if (isAdmin()) body.selcom = { vendor: f.vendor.value, baseUrl: f.baseUrl.value, apiKey: f.apiKey.value, apiSecret: f.apiSecret.value, enabled: f.selEnabled.checked, clearKeys: f.clearKeys ? f.clearKeys.checked : false };
+    api("savePaySettings", { settings: body }).then(function(j){ state.paySettings = j.settings; render(); flash("Payment settings saved"); }).catch(function(ex){ flash(ex.message, "err"); });
+  });
+  $("view").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-act]"); if (!b) return;
+    var row = b.closest("[data-order]"); if (!row) return;
+    var id = row.dataset.order, o = state.orders.filter(function(x){ return x.id === id; })[0], done = function(j, msg){ state.orders = replace(state.orders, j.order); render(); flash(msg); };
+    if (b.dataset.act === "order-confirm") {
+      if (!confirm("Did " + TCD.money(o.amount) + " arrive" + (o.txCode ? " with code " + o.txCode : "") + "? The package will be activated now.")) return;
+      api("confirmOrder", { id: id }).then(function(j){ done(j, "Payment confirmed and package activated"); return load(); }).catch(function(ex){ flash(ex.message, "err"); });
+    }
+    if (b.dataset.act === "order-reject") {
+      var reason = prompt("Why can't you confirm it? The customer sees this (e.g. no payment found with this code).");
+      if (!reason) return;
+      api("rejectOrder", { id: id, reason: reason }).then(function(j){ done(j, "Order rejected"); }).catch(function(ex){ flash(ex.message, "err"); });
+    }
+    if (b.dataset.act === "order-check") {
+      api("checkSelcomOrder", { id: id }).then(function(j){ done(j, "Selcom says: " + ((j.order.selcom && j.order.selcom.status) || j.order.status)); }).catch(function(ex){ flash(ex.message, "err"); });
+    }
+  });
 
   // ---- Trust: inspection reports, buyer alerts, reports ----
   var AREAS = ["Engine", "Gearbox", "Suspension and steering", "Brakes", "Body and paint", "Interior", "Electrical", "AC", "Tyres"];

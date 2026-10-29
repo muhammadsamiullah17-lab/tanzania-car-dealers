@@ -7,6 +7,7 @@ import { users, ROLES, cleanUsername, checkNewPassword, hashPassword, verifyPass
 import { members, staffView, readDoc, removeMember } from "../lib/members.js";
 import { jcars, jrequests, getSettings, saveSettings, SALE_TYPES, JSTATUSES, REQUEST_STATUSES } from "../lib/japan.js";
 import { alerts, reports, inspectionFields } from "../lib/buyers.js";
+import { orders, getPaySettings, adminPaySettings, savePaySettings, activateOrder, refreshSelcom } from "../lib/payments.js";
 
 const BODIES = ["Hatchback", "Sedan", "Wagon", "Coupe", "SUV", "MiniVan", "Van", "Pickup", "Truck", "Bus", "Other"];
 
@@ -260,6 +261,58 @@ const actions = {
       m.updatedAt = new Date().toISOString();
       await members.save(m);
       return { ok: true };
+    },
+  },
+
+  // ---- Payments: packages, Lipa numbers, Selcom keys, orders ----
+
+  getPaySettings: { roles: VERIFIERS, run: async () => ({ settings: adminPaySettings(await getPaySettings()) }) },
+
+  // Managers can change prices and Lipa numbers; only admins can change Selcom keys.
+  savePaySettings: {
+    roles: VERIFIERS,
+    run: async (b, me) => ({ settings: adminPaySettings(await savePaySettings(b.settings || {}, me.username, me.role === "admin")) }),
+  },
+
+  listOrders: { run: async () => ({ orders: (await orders.all()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }) },
+
+  // Staff checked their phone/statement and the money arrived: activate the package.
+  confirmOrder: {
+    roles: VERIFIERS,
+    async run(b, me) {
+      const o = await orders.get(b.id);
+      if (!o) throw fail("Order not found", 404);
+      if (o.status === "activated") return { order: o };
+      if (["cancelled"].includes(o.status)) throw fail("This order was cancelled by the customer.");
+      o.status = "paid";
+      o.paidAt = new Date().toISOString();
+      o.confirmedBy = me.username;
+      o.notes = (o.notes || []).concat({ by: me.username, at: o.paidAt, text: "Payment confirmed" + (b.note ? ": " + text(b.note, 300) : "") });
+      await orders.save(o);
+      return { order: await activateOrder(o, me.username) };
+    },
+  },
+
+  rejectOrder: {
+    roles: VERIFIERS,
+    async run(b, me) {
+      const o = await orders.get(b.id);
+      if (!o) throw fail("Order not found", 404);
+      if (o.status === "activated") throw fail("This order is already active.");
+      if (!text(b.reason, 300)) throw fail("Write the reason (the customer sees it).");
+      o.status = "rejected";
+      o.rejectReason = text(b.reason, 300);
+      o.notes = (o.notes || []).concat({ by: me.username, at: new Date().toISOString(), text: "Rejected: " + o.rejectReason });
+      await orders.save(o);
+      return { order: o };
+    },
+  },
+
+  checkSelcomOrder: {
+    async run(b) {
+      const o = await orders.get(b.id);
+      if (!o) throw fail("Order not found", 404);
+      return { order: await refreshSelcom(o, await getPaySettings()) };
     },
   },
 

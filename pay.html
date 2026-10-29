@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Pay · Tanzania Car Dealers</title>
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<section>
+  <div class="wrap" style="max-width:760px">
+    <div class="crumbs"><a href="/account">My account</a> › Pay</div>
+    <h1 style="font-size:30px;margin:0 0 6px" id="title">Feature your car</h1>
+    <p class="sub" id="lead"></p>
+    <div id="root"><p class="empty">Loading…</p></div>
+  </div>
+</section>
+<script src="/config.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("");
+  var esc = TCD.esc, root = document.getElementById("root");
+  var q = new URLSearchParams(location.search), adId = q.get("ad"), isDealer = q.get("dealer") === "1", orderId = q.get("order");
+  var type = isDealer ? "dealer" : "feature", opts = null, order = null, timer = null;
+  if (!TCD.session.get().token || TCD.session.get().kind !== "m") { location.href = "/login?next=" + encodeURIComponent(location.pathname + location.search); return; }
+  function call(action, data){ return TCD.api("pay", action, data); }
+  function fail(ex){ root.insertAdjacentHTML("afterbegin", '<div class="notice err">' + esc(ex.message) + '</div>'); }
+  function until(iso){ return iso && new Date(iso) > new Date() ? new Date(iso).toLocaleDateString() : null; }
+  var WA = function(text){ return TCD.waLink(window.SITE.whatsapp, text); };
+
+  var STEPS = {
+    "M-Pesa": "Dial *150*00# or open the M-Pesa app → Lipa kwa M-Pesa → Business number",
+    "Mixx by Yas": "Dial *150*01# or open the Mixx by Yas app → Lipa kwa Mixx → Business number",
+    "Airtel Money": "Dial *150*60# or open the Airtel Money app → Make payments → Merchant number",
+    "HaloPesa": "Dial *150*88# or open the HaloPesa app → Lipa Bill / Merchant → Number",
+  };
+
+  function chooseView(){
+    var s = opts.settings, item, pkgs = s.packages[type] || [];
+    if (type === "feature") {
+      item = opts.ads.filter(function(a){ return a.id === adId; })[0];
+      if (!item) { root.innerHTML = '<p class="notice err">Choose a live car from <a href="/account">My cars</a> to feature. Cars waiting for approval can be featured once they are live.</p>'; return; }
+      document.getElementById("lead").innerHTML = "Show <b>" + esc(item.title) + "</b> at the top of the list with a FEATURED badge." + (until(item.featuredUntil) ? " It is featured until <b>" + until(item.featuredUntil) + "</b>; new days are added on top." : "");
+    } else {
+      item = opts.dealer;
+      document.getElementById("title").textContent = "Dealer package";
+      if (!item) { root.innerHTML = '<p class="notice err">Dealer packages are for verified dealers with a dealer page.</p>'; return; }
+      document.getElementById("lead").innerHTML = "<b>Silver</b>: your dealer page shown first on the Dealers page with a Silver badge. <b>Gold</b>: the same with a Gold badge, plus <b>all your live cars Featured</b>." +
+        (until(item.packageUntil) ? " You have <b>" + esc(item.packageTier) + "</b> until <b>" + until(item.packageUntil) + "</b>." : "");
+    }
+    var ways = s.lipa.map(function(l){ return { id: "lipa:" + l.network, label: l.network, hint: "Pay to " + l.number + (l.accountName ? " (" + l.accountName + ")" : "") + ", then enter the SMS code" }; });
+    if (s.selcom.available) ways.unshift({ id: "selcom", label: "Mobile money prompt (fastest)", hint: "M-Pesa, Mixx by Yas, Airtel Money or HaloPesa: get a PIN prompt on your phone. Activates automatically." });
+    if (!ways.length) {
+      root.innerHTML = '<div class="notice err"><b>Online payment is being set up.</b> Message us on WhatsApp and we will feature it for you.</div>' +
+        '<a class="btn btn-wa" target="_blank" rel="noopener" href="' + esc(WA("Hello, I want to buy a " + (type === "dealer" ? "dealer package" : "Featured ad") + (item.title ? " for my " + item.title : "") + ".")) + '">' + TCD.WA_ICON + 'Ask on WhatsApp</a>';
+      return;
+    }
+    root.innerHTML = '<form id="f" class="panel"><h2 style="font-size:20px">1. Choose a package</h2><div class="pkg">' +
+      pkgs.map(function(p, i){ return '<label><input type="radio" name="pkg" value="' + esc(p.id) + '"' + (i === 0 ? " checked" : "") + '><b>' + esc(p.name) + '</b><span class="price">' + TCD.money(p.price) + '</span><span class="hint" style="display:block">' + p.days + ' days</span></label>'; }).join("") + '</div>' +
+      '<h2 style="font-size:20px">2. Choose how to pay</h2><div class="pkg">' +
+      ways.map(function(w, i){ return '<label><input type="radio" name="way" value="' + esc(w.id) + '"' + (i === 0 ? " checked" : "") + '><b>' + esc(w.label) + '</b><span class="hint" style="display:block">' + esc(w.hint) + '</span></label>'; }).join("") + '</div>' +
+      '<div id="phone-row"' + (s.selcom.available ? "" : " hidden") + '><label for="phone">Mobile-money number to pay from</label><input id="phone" type="tel" placeholder="0712 345 678"><div class="hint">You get a PIN prompt on this phone.</div></div>' +
+      '<button class="btn btn-main" id="go" style="width:100%;margin-top:16px">Continue</button></form>';
+    var f = document.getElementById("f");
+    function sync(){ document.getElementById("phone-row").hidden = f.way.value !== "selcom"; }
+    f.addEventListener("change", sync); sync();
+    f.addEventListener("submit", function(e){
+      e.preventDefault();
+      var btn = document.getElementById("go"); btn.disabled = true; btn.textContent = "Please wait…";
+      var way = f.way.value, data = { type: type, packageId: f.pkg.value, adId: adId, origin: location.origin };
+      if (way === "selcom") { data.method = "selcom"; data.phone = document.getElementById("phone").value; }
+      else { data.method = "lipa"; data.network = way.slice(5); }
+      call("create", data).then(function(j){ order = j.order; history.replaceState(null, "", "/pay?order=" + order.id); orderView(); })
+        .catch(function(ex){ btn.disabled = false; btn.textContent = "Continue"; fail(ex); });
+    });
+  }
+
+  function orderView(){
+    clearTimeout(timer);
+    var o = order, head = '<div class="panel"><div class="hint" style="margin:0">Order ' + esc(o.ref) + ' · ' + esc(o.packageName) + ' · ' + esc(o.itemTitle || "") + '</div><div class="price" style="font-size:24px;margin:6px 0 12px">' + TCD.money(o.amount) + '</div>';
+    document.getElementById("title").textContent = o.type === "dealer" ? "Dealer package" : "Feature your car";
+    document.getElementById("lead").textContent = "";
+    if (o.status === "activated") {
+      root.innerHTML = head + '<div class="notice ok"><b>✓ Paid and active' + (o.activeUntil ? " until " + new Date(o.activeUntil).toLocaleDateString() : "") + '.</b> Thank you!</div>' +
+        '<a class="btn btn-main" href="' + (o.adId ? "/car?id=" + o.adId : "/dealers") + '">See it live</a> <a class="btn btn-ghost" href="/account">My account</a></div>';
+      return;
+    }
+    if (["cancelled", "failed", "rejected"].indexOf(o.status) !== -1) {
+      root.innerHTML = head + '<div class="notice err"><b>' + { cancelled: "This order was cancelled.", failed: "The payment did not go through.", rejected: "We could not confirm this payment." }[o.status] + '</b>' +
+        (o.rejectReason ? " " + esc(o.rejectReason) : "") + '</div>' +
+        (o.status === "rejected" && o.method === "lipa" ? codeForm(o) : "") +
+        '<a class="btn btn-ghost" href="/account">Back to my account</a> <a class="btn btn-wa" target="_blank" rel="noopener" href="' + esc(WA("Hello, about my payment " + o.ref + ".")) + '">' + TCD.WA_ICON + 'Ask us</a></div>';
+      bindCode(); return;
+    }
+    if (o.method === "selcom") {
+      root.innerHTML = head + '<div class="notice ok"><b>📱 Check your phone (+' + esc(o.payPhone) + ').</b> Enter your mobile-money PIN to pay ' + TCD.money(o.amount) + ' to Tanzania Car Dealers. This page updates by itself.</div>' +
+        '<p class="hint" id="poll">Waiting for payment…</p><button class="btn btn-ghost btn-sm" id="cancel">Cancel</button></div>';
+      document.getElementById("cancel").onclick = cancel;
+      poll(0); return;
+    }
+    if (o.status === "awaiting_check") {
+      root.innerHTML = head + '<div class="notice ok"><b>Thank you! We received your code ' + esc(o.txCode) + '.</b> Our team checks the payment and activates your package, usually within a few hours. You can close this page.</div>' +
+        '<a class="btn btn-ghost" href="/account">Back to my account</a></div>';
+      return;
+    }
+    root.innerHTML = head + '<b>Pay with ' + esc(o.network) + '</b><ol class="pay-steps">' +
+      '<li>' + esc(STEPS[o.network] || "Open your mobile-money menu → Pay merchant") + '</li>' +
+      '<li>Number: <span class="bigcode">' + esc(o.payTo) + '</span>' + (o.payToName ? ' <span class="hint">(' + esc(o.payToName) + ')</span>' : "") + '</li>' +
+      '<li>Amount: <b>' + TCD.money(o.amount) + '</b></li>' +
+      '<li>Reference (if asked): <span class="bigcode">' + esc(o.ref) + '</span></li>' +
+      '<li>Enter your PIN. You get an SMS with a transaction code.</li></ol>' + codeForm(o) +
+      '<button class="btn btn-ghost btn-sm" id="cancel" style="margin-top:10px">Cancel order</button></div>';
+    document.getElementById("cancel").onclick = cancel;
+    bindCode();
+  }
+  function codeForm(o){
+    return '<form id="code-form" style="margin-top:8px"><label for="code">Transaction code from the SMS</label><input id="code" required maxlength="40" placeholder="e.g. QKJ2ABC123" style="text-transform:uppercase">' +
+      '<button class="btn btn-main" style="width:100%;margin-top:10px">I have paid, send code</button></form>';
+  }
+  function bindCode(){
+    var cf = document.getElementById("code-form"); if (!cf) return;
+    cf.addEventListener("submit", function(e){
+      e.preventDefault();
+      call("submitCode", { id: order.id, code: document.getElementById("code").value }).then(function(j){ order = j.order; orderView(); }).catch(fail);
+    });
+  }
+  function cancel(){
+    if (!confirm("Cancel this order?")) return;
+    call("cancel", { id: order.id }).then(function(j){ order = j.order; orderView(); }).catch(fail);
+  }
+  function poll(n){
+    timer = setTimeout(function(){
+      call("status", { id: order.id }).then(function(j){
+        order = j.order;
+        if (order.status === "pushed" || order.status === "pending") {
+          if (n < 45) { var p = document.getElementById("poll"); if (p) p.textContent = "Waiting for payment… (" + Math.round((n + 1) * 4) + "s)"; poll(n + 1); }
+          else { var p2 = document.getElementById("poll"); if (p2) p2.innerHTML = "Still waiting. If you paid, this page will update when Selcom confirms. <a href=\"\">Refresh</a>"; }
+        } else orderView();
+      }).catch(function(){ if (n < 45) poll(n + 1); });
+    }, 4000);
+  }
+
+  (orderId ? call("myOrders").then(function(j){
+      order = j.orders.filter(function(o){ return o.id === orderId; })[0];
+      if (!order) throw new Error("Order not found.");
+      return call("status", { id: order.id }).then(function(s){ order = s.order; orderView(); });
+    })
+    : call("options").then(function(j){ opts = j; chooseView(); })
+  ).catch(function(ex){
+    if (ex.status === 401) { TCD.session.clear(); location.href = "/login?next=" + encodeURIComponent(location.pathname + location.search); return; }
+    root.innerHTML = '<div class="notice err">' + esc(ex.message) + '</div><a class="btn btn-ghost" href="/account">My account</a>';
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,22 @@
-// GET /api/listings            -> approved ads (featured first) and dealers
+// GET /api/listings            -> approved ads (featured first) and dealers (paid packages first)
 // GET /api/listings?id=<ad id> -> one approved ad with its dealer
-import { ads, dealers, publicAd, sortListings, send } from "../lib/store.js";
+// A car is Featured if it has Featured days left, or its dealer has an active Gold package.
+import { ads, dealers, publicAd, send } from "../lib/store.js";
+import { dealerTier } from "../lib/payments.js";
+
+const TIER_ORDER = { gold: 0, silver: 1 };
+
+function publicDealer(d) {
+  const { memberId, ...rest } = d;
+  return { ...rest, tier: dealerTier(d) };
+}
+
+function withFeatured(ad, dealersById) {
+  const p = publicAd(ad);
+  const d = ad.dealerId && dealersById[ad.dealerId];
+  if (d && d.tier === "gold") p.featured = true;
+  return p;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return send(res, 405, { error: "Method not allowed" });
@@ -11,13 +27,18 @@ export default async function handler(req, res) {
       const ad = await ads.get(id);
       if (!ad || !["approved", "sold"].includes(ad.status)) return send(res, 404, { error: "Not found" });
       const dealer = ad.dealerId ? await dealers.get(ad.dealerId) : null;
+      const pd = dealer ? publicDealer(dealer) : null;
       res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
-      return send(res, 200, { ad: publicAd(ad), dealer });
+      return send(res, 200, { ad: withFeatured(ad, pd ? { [pd.id]: pd } : {}), dealer: pd });
     }
     const [allAds, allDealers] = await Promise.all([ads.all(), dealers.all()]);
-    const live = sortListings(allAds.filter((a) => a.status === "approved")).map(publicAd);
+    const pubDealers = allDealers.map(publicDealer);
+    const byId = Object.fromEntries(pubDealers.map((d) => [d.id, d]));
+    const live = allAds.filter((a) => a.status === "approved").map((a) => withFeatured(a, byId))
+      .sort((a, b) => (b.featured - a.featured) || (b.createdAt || "").localeCompare(a.createdAt || ""));
+    pubDealers.sort((a, b) => ((TIER_ORDER[a.tier] ?? 9) - (TIER_ORDER[b.tier] ?? 9)) || a.name.localeCompare(b.name));
     res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
-    send(res, 200, { ads: live, dealers: allDealers.sort((a, b) => a.name.localeCompare(b.name)) });
+    send(res, 200, { ads: live, dealers: pubDealers });
   } catch (e) {
     console.error(e);
     send(res, 500, { error: "Could not load listings" });

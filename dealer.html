@@ -34,7 +34,7 @@
       '<div class="panel" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-bottom:28px">' +
         '<span class="logo-big" style="width:72px;height:72px;font-size:28px">' + esc(d.name.charAt(0)) + '</span>' +
         '<div style="flex:1;min-width:220px"><h1 style="font-size:28px;margin:0">' + esc(d.name) + '</h1>' +
-          (d.verified ? '<span class="verified">✓ Verified dealer</span>' : "") +
+          (d.tier ? '<span class="tier ' + d.tier + '">' + (d.tier === "gold" ? "★ Gold dealer" : "★ Silver dealer") + '</span> ' : "") + (d.verified ? '<span class="verified">✓ Verified dealer</span>' : "") +
           '<p class="seller" style="margin:8px 0 0">' + esc([d.address, d.city].filter(Boolean).join(", ")) + '</p>' +
           (d.about ? '<p style="margin:8px 0 0;white-space:pre-line">' + esc(d.about) + '</p>' : "") + '</div>' +
         '<a class="btn btn-wa" target="_blank" rel="noopener" href="' + esc(TCD.waLink(d.whatsapp, "Hello " + d.name + ", I found you on Tanzania Car Dealers.")) + '">' + TCD.WA_ICON + 'WhatsApp dealer</a>' +
