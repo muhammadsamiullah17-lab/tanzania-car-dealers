@@ -73,11 +73,13 @@
 <datalist id="cities"><option>Dar es Salaam</option><option>Arusha</option><option>Mwanza</option><option>Dodoma</option><option>Mbeya</option><option>Morogoro</option><option>Tanga</option><option>Moshi</option><option>Zanzibar</option></datalist>
 <script src="/config.js"></script>
 <script src="/assets/app.js"></script>
+<script src="/assets/japan.js"></script>
 <script>
 (function(){
   TCD.chrome("");
   var esc = TCD.esc, $ = function(id){ return document.getElementById(id); };
-  var state = { tab: "pending", ads: [], dealers: [], users: [], members: [], memberFilter: "review", openMember: null, editing: null, editingUser: null, me: null };
+  var state = { tab: "pending", ads: [], dealers: [], users: [], members: [], memberFilter: "review", openMember: null, editing: null, editingUser: null, me: null,
+    jcars: [], requests: [], importSettings: null, editingJcar: null };
   function isAdmin(){ return state.me && state.me.role === "admin"; }
   function canVerify(){ return state.me && (state.me.role === "admin" || state.me.role === "manager"); }
   var ROLE_LABEL = { admin: "Admin", manager: "Manager", staff: "Staff" };
@@ -126,8 +128,10 @@
 
   function load(){
     var none = Promise.resolve(null);
-    return Promise.all([api("listAds"), api("listDealers"), isAdmin() ? api("listUsers") : none, canVerify() ? api("listMembers") : none]).then(function(r){
-      state.ads = r[0].ads; state.dealers = r[1].dealers; state.users = r[2] ? r[2].users : []; state.members = r[3] ? r[3].members : []; render();
+    return Promise.all([api("listAds"), api("listDealers"), isAdmin() ? api("listUsers") : none, canVerify() ? api("listMembers") : none,
+      api("listJcars"), api("listRequests"), api("getImportSettings")]).then(function(r){
+      state.ads = r[0].ads; state.dealers = r[1].dealers; state.users = r[2] ? r[2].users : []; state.members = r[3] ? r[3].members : [];
+      state.jcars = r[4].cars; state.requests = r[5].requests; state.importSettings = r[6].settings; render();
     }).catch(function(ex){ flash(ex.message, "err"); });
   }
   function start(user){
@@ -142,6 +146,8 @@
   function tabs(){
     var t = [["pending", "Cars waiting"], ["approved", "Live"], ["sold", "Sold"], ["rejected", "Rejected"], ["dealers", "Dealers"]];
     if (canVerify()) t.unshift(["accounts", "Accounts to verify"]);
+    t.push(["japan", "🇯🇵 Japan stock"], ["requests", "Import requests"]);
+    if (canVerify()) t.push(["import-settings", "Import settings"]);
     if (isAdmin()) t.push(["users", "Staff users"]);
     return t;
   }
@@ -149,12 +155,174 @@
     $("tabs").innerHTML = tabs().map(function(t){
       var n = t[0] === "dealers" ? state.dealers.length : t[0] === "users" ? state.users.length
         : t[0] === "accounts" ? state.members.filter(function(m){ return m.status === "review"; }).length
+        : t[0] === "japan" ? state.jcars.length : t[0] === "requests" ? state.requests.filter(function(r){ return r.status === "new"; }).length
+        : t[0] === "import-settings" ? ""
         : state.ads.filter(function(a){ return a.status === t[0]; }).length;
       return '<button data-tab="' + t[0] + '"' + (state.tab === t[0] ? ' class="on"' : "") + '>' + t[1] + '<span class="count">' + n + '</span></button>';
     }).join("");
     $("view").innerHTML = state.tab === "dealers" ? dealersView() : state.tab === "users" ? usersView()
-      : state.tab === "accounts" ? membersView() : adsView(state.tab);
+      : state.tab === "accounts" ? membersView() : state.tab === "japan" ? jcarsView() : state.tab === "requests" ? requestsView()
+      : state.tab === "import-settings" ? settingsView() : adsView(state.tab);
   }
+
+  // ---- Import from Japan: stock, buyer requests, rates ----
+  var BODY_OPTS = ["Hatchback", "Sedan", "Wagon", "Coupe", "SUV", "MiniVan", "Van", "Pickup", "Truck", "Bus", "Other"];
+  function opts(list, val){ return list.map(function(o){ var v = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o; return '<option value="' + esc(v) + '"' + (String(val) === String(v) ? " selected" : "") + '>' + esc(l) + '</option>'; }).join(""); }
+  function jcarForm(c){
+    var isNew = !c.id, local = c.auctionEnds ? new Date(new Date(c.auctionEnds).getTime() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 16) : "";
+    var inp = function(name, label, val, extra){ return '<div><label>' + label + '</label><input name="' + name + '" value="' + esc(val == null ? "" : val) + '"' + (extra || "") + '></div>'; };
+    return '<form id="jcar-form" class="panel" style="margin-bottom:18px"><h2 style="font-size:20px">' + (isNew ? "Add a car from Japan" : "Edit: " + esc(c.year + " " + c.make + " " + c.model)) + '</h2><div class="form-grid">' +
+      inp("make", "Make *", c.make, ' required list="jmakes"') + inp("model", "Model *", c.model, " required") +
+      inp("grade", "Grade / trim", c.grade, ' placeholder="240G L Package"') + inp("year", "Year *", c.year, ' type="number" required') +
+      inp("km", "Mileage (km)", c.km, ' type="number"') + inp("cc", "Engine (cc) *", c.cc, ' type="number" required') +
+      '<div><label>Fuel</label><select name="fuel">' + opts(["Petrol", "Diesel", "Hybrid", "Electric"], c.fuel) + '</select></div>' +
+      '<div><label>Gearbox</label><select name="gearbox">' + opts(["Automatic", "Manual"], c.gearbox) + '</select></div>' +
+      '<div><label>Drive</label><select name="drive">' + opts(["2WD", "4WD"], c.drive) + '</select></div>' +
+      '<div><label>Body type (sets shipping size)</label><select name="body">' + opts(BODY_OPTS, c.body || "Sedan") + '</select></div>' +
+      inp("color", "Colour", c.color) + inp("chassis", "Chassis code", c.chassis, ' placeholder="ACU30"') +
+      inp("auctionGrade", "Auction grade", c.auctionGrade, ' placeholder="4.5"') + inp("refNo", "Stock / lot number", c.refNo) +
+      '<div><label>Sale type</label><select name="saleType">' + opts([["stock", "Stock (fixed price)"], ["auction", "Auction"]], c.saleType) + '</select></div>' +
+      '<div><label>Auction closes (your local time)</label><input name="auctionEnds" type="datetime-local" value="' + local + '"></div>' +
+      inp("price", "Price in Japan (FOB) *", c.price, ' type="number" required') +
+      '<div><label>Currency</label><select name="currency">' + opts([["JPY", "Japanese yen ¥"], ["USD", "US dollars $"]], c.currency) + '</select></div>' +
+      '<div><label>Status</label><select name="status">' + opts([["available", "Available"], ["reserved", "Reserved"], ["sold", "Sold"], ["hidden", "Hidden (not shown)"]], c.status || "available") + '</select></div>' +
+      inp("source", "Where it's from (staff only)", c.source, ' placeholder="Sococara SAM, USS Tokyo…"') +
+      '<div class="full"><label>Description (shown to buyers)</label><textarea name="description">' + esc(c.description) + '</textarea></div>' +
+      '<div class="full"><label>Internal note (staff only)</label><textarea name="internalNote" style="min-height:60px">' + esc(c.internalNote) + '</textarea></div>' +
+      '<div class="full"><label>Photos (up to 12)</label>' +
+        ((c.photos || []).length ? '<div class="thumbs" id="j-keep">' + c.photos.map(function(p){ return '<label style="display:inline-flex;flex-direction:column;gap:4px;font-weight:500;font-size:12px"><img src="' + esc(p) + '" alt=""><span><input type="checkbox" data-keep="' + esc(p) + '" checked style="width:auto"> keep</span></label>'; }).join("") + '</div>' : "") +
+        '<input type="file" id="j-photos" accept="image/*" multiple style="margin-top:8px"><div class="thumbs" id="j-new"></div></div>' +
+      '<div class="full btns"><button class="btn btn-main" id="jcar-save">' + (isNew ? "Add car" : "Save changes") + '</button><button type="button" class="btn btn-ghost" data-act="cancel-jcar">Cancel</button></div>' +
+      '</div></form><datalist id="jmakes"><option>Toyota</option><option>Nissan</option><option>Honda</option><option>Mazda</option><option>Subaru</option><option>Mitsubishi</option><option>Suzuki</option><option>Lexus</option><option>Isuzu</option></datalist>';
+  }
+  function jcarsView(){
+    var editing = state.editingJcar === "new" ? {} : state.jcars.filter(function(c){ return c.id === state.editingJcar; })[0];
+    var s = state.importSettings;
+    return (editing ? jcarForm(editing) : '<div class="btns" style="margin-bottom:16px"><button class="btn btn-main" data-act="new-jcar">+ Add car from Japan</button><a class="btn btn-ghost" href="/japan" target="_blank">View public page</a></div>') +
+      (state.jcars.length ? state.jcars.map(function(c){
+        var est = s ? TCDJapan.landed(c, s) : null;
+        return '<div class="row" data-jcar="' + c.id + '">' +
+          (c.photos && c.photos[0] ? '<img src="' + esc(c.photos[0]) + '" alt="">' : '<div class="noimg"></div>') +
+          '<div><h3>' + esc(c.year + " " + c.make + " " + c.model + (c.grade ? " " + c.grade : "")) + '</h3>' +
+          '<div style="margin:4px 0"><span class="pill ' + (c.status === "available" ? "approved" : c.status === "reserved" ? "pending" : "off") + '">' + c.status.toUpperCase() + '</span><span class="pill">' + (c.saleType === "auction" ? "AUCTION" : "STOCK") + '</span></div>' +
+          '<div class="meta">In Japan: ' + (c.currency === "USD" ? "$" : "¥") + TCD.fmt.format(c.price) + (est ? ' · estimated in Dar: <b>' + TCD.money(est.total) + '</b>' : "") + '</div>' +
+          '<div class="meta">' + esc([TCD.fmt.format(c.km) + " km", c.cc + "cc", c.fuel, c.gearbox, c.body, c.auctionGrade ? "grade " + c.auctionGrade : "", c.refNo ? "ref " + c.refNo : ""].filter(Boolean).join(" · ")) + '</div>' +
+          (c.source ? '<div class="meta">Source: ' + esc(c.source) + '</div>' : "") +
+          '<div class="meta">Added by ' + esc(c.createdBy || "?") + ' · last change by ' + esc(c.updatedBy || "?") + '</div></div>' +
+          '<div class="controls"><div class="btns"><button class="btn btn-ghost btn-sm" data-act="edit-jcar">Edit</button><a class="btn btn-ghost btn-sm" target="_blank" href="/japan-car?id=' + c.id + '">View</a></div>' +
+          '<select data-act="jstatus">' + opts([["available", "Available"], ["reserved", "Reserved"], ["sold", "Sold"], ["hidden", "Hidden"]], c.status) + '</select>' +
+          (canVerify() ? '<button class="btn btn-danger btn-sm" data-act="delete-jcar">Delete</button>' : "") + '</div></div>';
+      }).join("") : '<p class="empty">No cars from Japan yet. Add the cars you can source, with the price in Japan, and the site works out the cost in Dar es Salaam.</p>');
+  }
+  function requestsView(){
+    if (!state.requests.length) return '<p class="empty">No requests yet. Customers send them from the "Find me a car" form on the From Japan page.</p>';
+    return state.requests.map(function(r){
+      var wa = TCD.waLink(r.phone, "Hello " + r.name + ", this is Tanzania Car Dealers about your request for a " + [r.make, r.model].filter(Boolean).join(" ") + " from Japan.");
+      return '<div class="row" style="grid-template-columns:1fr auto" data-req="' + r.id + '"><div>' +
+        '<h3>' + esc([r.make, r.model].filter(Boolean).join(" ") || "Car request") + (r.yearFrom ? " · " + r.yearFrom + " or newer" : "") + '</h3>' +
+        '<div style="margin:4px 0"><span class="pill ' + (r.status === "new" ? "pending" : r.status === "closed" ? "off" : "approved") + '">' + r.status.toUpperCase() + '</span></div>' +
+        '<div class="meta"><b>' + esc(r.name) + '</b> · +' + esc(r.phone) + ' · budget ' + (r.budgetTzs ? TCD.money(r.budgetTzs) : "not given") + ' · ' + new Date(r.createdAt).toLocaleString() + '</div>' +
+        (r.details ? '<div class="meta" style="white-space:pre-line;margin-top:4px">' + esc(r.details) + '</div>' : "") +
+        ((r.notes || []).length ? r.notes.map(function(n){ return '<div class="hint" style="margin:4px 0 0">' + new Date(n.at).toLocaleString() + ' · <b>' + esc(n.by) + '</b>: ' + esc(n.text) + '</div>'; }).join("") : "") +
+        '</div><div class="controls"><div class="btns"><a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="' + esc(wa) + '">WhatsApp</a><a class="btn btn-ghost btn-sm" href="tel:+' + esc(r.phone) + '">Call</a></div>' +
+        '<select data-act="rstatus">' + opts([["new", "New"], ["contacted", "Contacted"], ["ordered", "Ordered"], ["closed", "Closed"]], r.status) + '</select>' +
+        '<button class="btn btn-ghost btn-sm" data-act="rnote">Add note</button></div></div>';
+    }).join("");
+  }
+  function settingsView(){
+    var s = state.importSettings; if (!s) return '<p class="empty">Loading…</p>';
+    var n = function(name, label, val, hint){ return '<div><label>' + label + '</label><input name="' + name + '" type="number" step="any" value="' + esc(val) + '">' + (hint ? '<div class="hint">' + hint + '</div>' : "") + '</div>'; };
+    var bands = function(kind, list, key, unit){
+      return '<div class="full"><label>' + (kind === "engine" ? "Excise duty by engine size" : "Excise duty by age (years since made)") + '</label>' +
+        list.map(function(b, i){ var last = i === list.length - 1;
+          return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span class="hint" style="width:120px">' + (last ? "Above that" : "Up to") + '</span>' +
+            (last ? '<span style="flex:1"></span>' : '<input data-band="' + kind + '" data-i="' + i + '" data-f="' + key + '" type="number" value="' + esc(b[key]) + '" style="flex:1"><span class="hint">' + unit + '</span>') +
+            '<input data-band="' + kind + '" data-i="' + i + '" data-f="pct" type="number" step="any" value="' + esc(b.pct) + '" style="width:110px"><span class="hint">%</span></div>'; }).join("") + '</div>';
+    };
+    return '<form id="settings-form" class="panel"><h2 style="font-size:20px">Import settings</h2>' +
+      '<p class="hint">Used to estimate the cost in Dar es Salaam on every Japan car and in the calculator. Defaults follow TRA "Taxes and Duties at a Glance 2025/26" and the Finance Act 2026. Update exchange rates often.' +
+      (s.updatedAt ? " Last updated " + new Date(s.updatedAt).toLocaleString() + " by " + esc(s.updatedBy) + "." : " Not saved yet: these are the defaults.") + '</p>' +
+      '<div class="form-grid">' +
+      n("tzsPerUsd", "TZS per 1 US dollar", s.tzsPerUsd) + n("jpyPerUsd", "Japanese yen per 1 US dollar", s.jpyPerUsd) +
+      n("fs", "Shipping, small car (USD)", s.freightUsd.small, "Hatchback") + n("fm", "Shipping, medium car (USD)", s.freightUsd.medium, "Sedan, wagon, coupe") +
+      n("fl", "Shipping, large car (USD)", s.freightUsd.large, "SUV, minivan, van, pickup") + n("fx", "Shipping, truck or bus (USD)", s.freightUsd.xl) +
+      n("insurancePct", "Marine insurance (% of price + shipping)", s.insurancePct) + n("importDutyPct", "Import duty (% of CIF)", s.importDutyPct) +
+      n("vatPct", "VAT (%)", s.vatPct) + n("rdlPct", "Railway Development Levy (% of CIF)", s.rdlPct) +
+      n("cpfPct", "Customs Processing Fee (% of FOB)", s.cpfPct) + n("registrationTzs", "Registration and plates (TZS)", s.registrationTzs) +
+      n("clearingTzs", "Clearing, port charges and delivery (TZS)", s.clearingTzs, "0 = shown as \"ask us\"") + n("serviceFeeTzs", "Our import service fee (TZS)", s.serviceFeeTzs, "0 = not shown") +
+      bands("engine", s.engineExcise, "maxCc", "cc") + bands("age", s.ageExcise, "maxAge", "years") +
+      '<div class="full"><button class="btn btn-main">Save settings</button></div></div></form>';
+  }
+  function collectSettings(form){
+    var f = form.elements, s = JSON.parse(JSON.stringify(state.importSettings));
+    ["tzsPerUsd", "jpyPerUsd", "insurancePct", "importDutyPct", "vatPct", "rdlPct", "cpfPct", "registrationTzs", "clearingTzs", "serviceFeeTzs"].forEach(function(k){ s[k] = Number(f[k].value); });
+    s.freightUsd = { small: Number(f.fs.value), medium: Number(f.fm.value), large: Number(f.fl.value), xl: Number(f.fx.value) };
+    form.querySelectorAll("[data-band]").forEach(function(inp){
+      var list = inp.dataset.band === "engine" ? s.engineExcise : s.ageExcise;
+      list[Number(inp.dataset.i)][inp.dataset.f] = Number(inp.value);
+    });
+    return s;
+  }
+  var jNewPhotos = [];
+  $("view").addEventListener("change", function(e){
+    var t = e.target;
+    if (t.id === "j-photos") {
+      Promise.all(Array.from(t.files).slice(0, 12).map(function(f){ return TCD.shrinkImage(f, 1280, 0.8); })).then(function(list){
+        jNewPhotos = list; $("j-new").innerHTML = list.map(function(p){ return '<img src="' + p + '" alt="">'; }).join("");
+      });
+      return;
+    }
+    var jrow = t.closest("[data-jcar]");
+    if (jrow && t.dataset.act === "jstatus") {
+      var car = state.jcars.filter(function(c){ return c.id === jrow.dataset.jcar; })[0];
+      var body = Object.assign({}, car, { status: t.value, keepPhotos: car.photos, newPhotos: [] });
+      api("saveJcar", body).then(function(j){ state.jcars = state.jcars.map(function(c){ return c.id === j.car.id ? j.car : c; }); render(); flash("Status updated"); })
+        .catch(function(ex){ flash(ex.message, "err"); });
+    }
+    var rrow = t.closest("[data-req]");
+    if (rrow && t.dataset.act === "rstatus") {
+      api("updateRequest", { id: rrow.dataset.req, status: t.value }).then(function(j){ state.requests = state.requests.map(function(r){ return r.id === j.request.id ? j.request : r; }); render(); flash("Request updated"); })
+        .catch(function(ex){ flash(ex.message, "err"); });
+    }
+  });
+  $("view").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-act]"); if (!b) return;
+    var act = b.dataset.act, jrow = b.closest("[data-jcar]"), rrow = b.closest("[data-req]");
+    if (act === "new-jcar") { state.editingJcar = "new"; jNewPhotos = []; render(); }
+    if (act === "cancel-jcar") { state.editingJcar = null; render(); }
+    if (act === "edit-jcar" && jrow) { state.editingJcar = jrow.dataset.jcar; jNewPhotos = []; render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    if (act === "delete-jcar" && jrow) {
+      if (!confirm("Delete this car and its photos?")) return;
+      api("deleteJcar", { id: jrow.dataset.jcar }).then(function(){ state.jcars = state.jcars.filter(function(c){ return c.id !== jrow.dataset.jcar; }); render(); flash("Car deleted"); })
+        .catch(function(ex){ flash(ex.message, "err"); });
+    }
+    if (act === "rnote" && rrow) {
+      var note = prompt("Note about this request (for staff only):"); if (!note) return;
+      api("updateRequest", { id: rrow.dataset.req, note: note }).then(function(j){ state.requests = state.requests.map(function(r){ return r.id === j.request.id ? j.request : r; }); render(); flash("Note added"); })
+        .catch(function(ex){ flash(ex.message, "err"); });
+    }
+  });
+  $("view").addEventListener("submit", function(e){
+    if (e.target.id === "jcar-form") {
+      e.preventDefault();
+      var f = e.target.elements, data = { id: state.editingJcar === "new" ? "" : state.editingJcar };
+      ["make", "model", "grade", "year", "km", "cc", "fuel", "gearbox", "drive", "body", "color", "chassis", "auctionGrade", "refNo", "saleType", "price", "currency", "status", "source", "description", "internalNote"].forEach(function(k){ data[k] = f[k].value; });
+      data.auctionEnds = f.auctionEnds.value ? new Date(f.auctionEnds.value).toISOString() : "";
+      data.keepPhotos = Array.from(e.target.querySelectorAll("[data-keep]")).filter(function(c){ return c.checked; }).map(function(c){ return c.dataset.keep; });
+      data.newPhotos = jNewPhotos;
+      var btn = $("jcar-save"); btn.disabled = true; btn.textContent = "Saving…";
+      api("saveJcar", data).then(function(j){
+        var exists = state.jcars.some(function(c){ return c.id === j.car.id; });
+        state.jcars = exists ? state.jcars.map(function(c){ return c.id === j.car.id ? j.car : c; }) : [j.car].concat(state.jcars);
+        state.editingJcar = null; jNewPhotos = []; render(); flash(exists ? "Car saved" : "Car added");
+      }).catch(function(ex){ flash(ex.message, "err"); btn.disabled = false; btn.textContent = "Try again"; });
+    }
+    if (e.target.id === "settings-form") {
+      e.preventDefault();
+      api("saveImportSettings", { settings: collectSettings(e.target) }).then(function(j){ state.importSettings = j.settings; render(); flash("Import settings saved"); })
+        .catch(function(ex){ flash(ex.message, "err"); });
+    }
+  });
   $("tabs").addEventListener("click", function(e){
     var b = e.target.closest("button[data-tab]"); if (!b) return;
     state.tab = b.dataset.tab; state.editing = null; state.editingUser = null; state.openMember = null; render();

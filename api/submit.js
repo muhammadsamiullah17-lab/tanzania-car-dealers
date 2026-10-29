@@ -40,7 +40,7 @@ export default async function handler(req, res) {
   const id = newId();
   try {
     const urls = [];
-    for (let i = 0; i < photos.length; i++) urls.push(await savePhoto(id, i, photos[i]));
+    for (const p of photos) urls.push(await savePhoto("ad:" + id, p));
     const now = new Date().toISOString();
     const dealer = me.type === "dealer";
     await ads.save({

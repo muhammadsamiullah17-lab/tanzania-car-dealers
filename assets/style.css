@@ -125,3 +125,14 @@ footer a{color:var(--muted)}
   .hero{padding:48px 0 40px}
   .brand{font-size:16px}
 }
+.cost td{padding:8px 0}
+.cost tr.group td{padding-top:14px}
+.cost tr.subtotal td{font-weight:700;border-bottom:2px solid var(--line)}
+.cost tr.total td{font-weight:800;font-size:18px;color:var(--price);border-bottom:0;padding-top:14px}
+.status-pill{position:absolute;top:10px;right:10px;font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--ink);color:#fff}
+.status-pill.reserved{background:#f1d27a;color:#3d2c00}
+.status-pill.sold{background:var(--danger)}
+.landed{font-size:13px;color:var(--muted)}
+.landed b{color:var(--price);font-size:17px}
+.tabs-inline{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.tabs-inline a{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;text-decoration:none}

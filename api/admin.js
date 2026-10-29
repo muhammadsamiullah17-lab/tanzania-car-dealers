@@ -1,10 +1,13 @@
 // POST /api/admin { action, ... } for staff. Logging in happens in /api/account (one login for all).
 // "status" and "setup" are open; everything else needs a logged-in, active staff user.
 // Each action lists the roles allowed to run it (default: all staff roles).
-import { ads, dealers, newId, digits, sortListings, readBody, send } from "../lib/store.js";
+import { ads, dealers, files, newId, digits, sortListings, savePhoto, photoFileId, readBody, send } from "../lib/store.js";
 import { checkSetupKey, issueToken, readToken } from "../lib/auth.js";
 import { users, ROLES, cleanUsername, checkNewPassword, hashPassword, verifyPassword, newUser, publicUser } from "../lib/users.js";
 import { members, staffView, readDoc, removeMember } from "../lib/members.js";
+import { jcars, jrequests, getSettings, saveSettings, SALE_TYPES, JSTATUSES, REQUEST_STATUSES } from "../lib/japan.js";
+
+const BODIES = ["Hatchback", "Sedan", "Wagon", "Coupe", "SUV", "MiniVan", "Van", "Pickup", "Truck", "Bus", "Other"];
 
 const STATUSES = ["pending", "approved", "rejected", "sold"];
 const ADMIN = ["admin"];
@@ -256,6 +259,80 @@ const actions = {
       m.updatedAt = new Date().toISOString();
       await members.save(m);
       return { ok: true };
+    },
+  },
+
+  // ---- Import from Japan ----
+
+  listJcars: { run: async () => ({ cars: (await jcars.all()).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")) }) },
+
+  // Create (no id) or edit a Japan car. keepPhotos: photo URLs to keep (in order); newPhotos: data URLs to add.
+  saveJcar: {
+    async run(b, me) {
+      const existing = b.id ? await jcars.get(b.id) : null;
+      if (b.id && !existing) throw fail("Car not found", 404);
+      const year = Number(b.year), price = Number(b.price), km = Number(b.km), cc = Number(b.cc);
+      if (!text(b.make, 40) || !text(b.model, 60)) throw fail("Make and model are required.");
+      if (!(year >= 1970 && year <= new Date().getFullYear() + 1)) throw fail("Check the year.");
+      if (!(price > 0)) throw fail("Enter the price in Japan.");
+      if (!(cc >= 50 && cc <= 10000)) throw fail("Enter the engine size in cc.");
+      const id = existing ? existing.id : newId();
+      const keep = existing ? (b.keepPhotos || []).filter((u) => existing.photos.includes(u)) : [];
+      const added = [];
+      for (const p of (b.newPhotos || []).slice(0, 12 - keep.length)) added.push(await savePhoto("jcar:" + id, p));
+      if (existing) for (const u of existing.photos.filter((u) => !keep.includes(u))) await files.remove(photoFileId(u)).catch(() => {});
+      const now = new Date().toISOString();
+      const car = {
+        id,
+        refNo: text(b.refNo, 40),
+        make: text(b.make, 40), model: text(b.model, 60), grade: text(b.grade, 80),
+        year, km: km >= 0 ? km : 0, cc,
+        fuel: ["Petrol", "Diesel", "Hybrid", "Electric"].includes(b.fuel) ? b.fuel : "Petrol",
+        gearbox: ["Automatic", "Manual"].includes(b.gearbox) ? b.gearbox : "Automatic",
+        drive: ["2WD", "4WD"].includes(b.drive) ? b.drive : "2WD",
+        body: BODIES.includes(b.body) ? b.body : "Other",
+        color: text(b.color, 30), chassis: text(b.chassis, 30), auctionGrade: text(b.auctionGrade, 10),
+        price, currency: b.currency === "USD" ? "USD" : "JPY",
+        saleType: SALE_TYPES.includes(b.saleType) ? b.saleType : "stock",
+        auctionEnds: b.saleType === "auction" && b.auctionEnds ? new Date(b.auctionEnds).toISOString() : null,
+        status: JSTATUSES.includes(b.status) ? b.status : "available",
+        description: text(b.description, 3000),
+        source: text(b.source, 120), internalNote: text(b.internalNote, 1000),
+        photos: keep.concat(added),
+        createdAt: existing ? existing.createdAt : now, createdBy: existing ? existing.createdBy : me.username,
+        updatedAt: now, updatedBy: me.username,
+      };
+      await jcars.save(car);
+      return { car };
+    },
+  },
+
+  deleteJcar: {
+    roles: VERIFIERS,
+    async run(b) {
+      await files.removeOwner("jcar:" + b.id);
+      await jcars.remove(b.id);
+      return { ok: true };
+    },
+  },
+
+  getImportSettings: { run: async () => ({ settings: await getSettings() }) },
+  saveImportSettings: { roles: VERIFIERS, run: async (b, me) => ({ settings: await saveSettings(b.settings || {}, me.username) }) },
+
+  listRequests: { run: async () => ({ requests: (await jrequests.all()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }) },
+
+  updateRequest: {
+    async run(b, me) {
+      const r = await jrequests.get(b.id);
+      if (!r) throw fail("Request not found", 404);
+      if (b.status) {
+        if (!REQUEST_STATUSES.includes(b.status)) throw fail("Bad status");
+        r.status = b.status;
+      }
+      if (b.note) r.notes = (r.notes || []).concat({ by: me.username, at: new Date().toISOString(), text: text(b.note, 1000) });
+      r.updatedAt = new Date().toISOString();
+      await jrequests.save(r);
+      return { request: r };
     },
   },
 

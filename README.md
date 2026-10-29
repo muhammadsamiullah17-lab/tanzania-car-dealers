@@ -15,6 +15,13 @@ Car marketplace for Tanzania. Every seller (private person or car dealer) create
 | `/dealers`, `/dealer?id=…` | Dealer list and dealer pages. Verified dealer accounts get a page automatically. |
 | `/admin` | Staff panel (see roles below). |
 
+## Import from Japan
+
+- `/japan`: cars staff can source from Japan (stock or auction), filters, an **import cost calculator**, and a **Find me a car** request form for logged-in customers.
+- `/japan-car?id=…`: full cost breakdown to Dar es Salaam and an order / "bid for me" button on WhatsApp.
+- Admin tabs: **Japan stock** (add/edit cars, photos, status), **Import requests** (follow up customers), **Import settings** (managers/admins: exchange rates, shipping per size, insurance, TRA rates and excise bands, registration, clearing and service fees).
+- Estimate (`assets/japan.js`): CIF = FOB + shipping + insurance. Import duty 25%, engine excise (5% up to 2,000cc, 10% above), age excise (0% under 8 years, 18% 8–10, 35% 11–20, 40% over 20) and RDL 2% on CIF; VAT 18% on CIF + duty + excise; Customs Processing Fee 0.6% on FOB; plus registration, clearing and service fees. Defaults from TRA *Taxes and Duties at a Glance 2025/26* and the Finance Act 2026; all editable. TRA's assessment is final.
+
 ## Verification
 
 - **Private person:** full name, city, ID type and number, photo of the ID, selfie holding the ID (back of ID optional).
