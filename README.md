@@ -88,7 +88,7 @@ The first visit to `/admin` on an empty database shows a one-time **Create the a
 ## Settings
 
 - **WhatsApp number, email, location:** `config.js`
-- **Our own stock:** `cars.js`
+- **Our own stock:** `cars.js` (empty; the sample cars were removed)
 - **Environment variables on Vercel:** `DATABASE_URL` (Neon), `SESSION_SECRET` (signs sessions and encrypts data; changing it logs everyone out and makes existing accounts unreadable), `ADMIN_PASSWORD` (one-time setup key).
 
 ## Run locally

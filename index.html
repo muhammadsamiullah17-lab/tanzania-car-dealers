@@ -295,6 +295,9 @@
     // new arrivals: newest marketplace cars first, then our own stock
     var fresh = (m.ads || []).slice().sort(function(a, b){ return (b.createdAt || "").localeCompare(a.createdAt || ""); }).concat(TCD.houseCars()).slice(0, 10);
     document.getElementById("rail").innerHTML = fresh.map(function(c){ return TCD.card(c, m.dealersById); }).join("");
+    // no cars yet: hide the browse and new arrivals sections instead of showing them empty
+    document.getElementById("browse").hidden = !m.cars.length;
+    document.getElementById("new").hidden = !fresh.length;
     // notices from Admin › Site settings
     var notes = site.notices || [];
     if (notes.length) {
