@@ -245,6 +245,7 @@
     var sel = s.selcom, admin = isAdmin();
     return '<form id="pay-form" class="panel"><h2 style="font-size:20px">Payment settings</h2>' +
       '<p class="hint">' + (s.updatedAt ? "Last saved " + new Date(s.updatedAt).toLocaleString() + " by " + esc(s.updatedBy) + "." : "Not saved yet: these are the suggested defaults.") + '</p>' +
+      '<label style="display:flex;gap:10px;align-items:flex-start;font-weight:500;padding:12px;border:1px solid var(--line);border-radius:12px;margin:6px 0 4px"><input type="checkbox" name="paidEnabled" style="width:auto;margin-top:4px"' + (s.paidEnabled ? " checked" : "") + '><span><b>Sell Featured ads and dealer packages</b><br><span class="hint">Off = everything is free for customers (no Feature or dealer package buttons). Staff can still feature cars for free from the Live tab.</span></span></label>' +
       '<h3 style="margin:16px 0 6px">Featured ad packages</h3><div class="hint" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px"><span>Name</span><span>Days</span><span>Price (TZS)</span></div>' + pk("feature") +
       '<h3 style="margin:16px 0 6px">Dealer packages</h3><p class="hint" style="margin:0 0 6px">First = Silver (shown first, badge). Second = Gold (also features all their live cars).</p>' + pk("dealer") +
       '<h3 style="margin:20px 0 6px">Lipa numbers (pay to your business number)</h3><p class="hint" style="margin:0 0 8px">Customers pay to these numbers and type the SMS code; staff confirm in the Payments tab. Leave empty to hide a network.</p>' +
@@ -267,7 +268,7 @@
     var fm = e.target, s = JSON.parse(JSON.stringify(state.paySettings)), f = fm.elements;
     fm.querySelectorAll("[data-pk]").forEach(function(inp){ var p = s.packages[inp.dataset.pk][Number(inp.dataset.i)]; p[inp.dataset.f] = inp.dataset.f === "name" ? inp.value : Number(inp.value); });
     fm.querySelectorAll("[data-lipa]").forEach(function(inp){ var l = s.lipa[Number(inp.dataset.lipa)]; l[inp.dataset.f] = inp.type === "checkbox" ? inp.checked : inp.value; });
-    var body = { packages: s.packages, lipa: s.lipa };
+    var body = { paidEnabled: f.paidEnabled.checked, packages: s.packages, lipa: s.lipa };
     if (isAdmin()) body.selcom = { vendor: f.vendor.value, baseUrl: f.baseUrl.value, apiKey: f.apiKey.value, apiSecret: f.apiSecret.value, enabled: f.selEnabled.checked, clearKeys: f.clearKeys ? f.clearKeys.checked : false };
     api("savePaySettings", { settings: body }).then(function(j){ state.paySettings = j.settings; render(); flash("Payment settings saved"); }).catch(function(ex){ flash(ex.message, "err"); });
   });

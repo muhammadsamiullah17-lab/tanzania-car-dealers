@@ -35,6 +35,8 @@ Car marketplace for Tanzania. Every seller (private person or car dealer) create
 
 ## Payments
 
+- **Right now everything is free.** Admin › Payment settings › "Sell Featured ads and dealer packages" is off, so customers see no Feature or dealer package buttons (staff can still feature cars for free from the Live tab). Tick it to start selling packages.
+
 - Customers (verified accounts) buy **Featured ad** packages (7/14/30 days) for their live cars and, if they are dealers, **Silver/Gold dealer** packages (30 days) at `/pay`, from **My account**.
   - Silver: dealer shown first on the Dealers page with a badge. Gold: the same, plus all the dealer's live cars are Featured.
   - Days stack on top of time already left.

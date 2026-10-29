@@ -42,6 +42,11 @@
 
   function chooseView(){
     var s = opts.settings, item, pkgs = s.packages[type] || [];
+    if (!s.paidEnabled) {
+      root.innerHTML = '<div class="notice ok"><b>Selling and buying on Tanzania Car Dealers is free right now.</b> Featured ads and dealer packages are not on sale yet. Want your car shown first? Ask us on WhatsApp.</div>' +
+        '<a class="btn btn-wa" target="_blank" rel="noopener" href="' + esc(WA("Hello, I would like my car featured on Tanzania Car Dealers.")) + '">' + TCD.WA_ICON + 'Ask on WhatsApp</a> <a class="btn btn-ghost" href="/account">My account</a>';
+      return;
+    }
     if (type === "feature") {
       item = opts.ads.filter(function(a){ return a.id === adId; })[0];
       if (!item) { root.innerHTML = '<p class="notice err">Choose a live car from <a href="/account">My cars</a> to feature. Cars waiting for approval can be featured once they are live.</p>'; return; }

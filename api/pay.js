@@ -38,6 +38,7 @@ const actions = {
   },
 
   async create(b, me, s) {
+    if (!s.paidEnabled) throw fail("Featured ads and dealer packages are not on sale right now. Contact us on WhatsApp.");
     const type = b.type === "dealer" ? "dealer" : "feature";
     const pkg = findPackage(s, type, b.packageId);
     if (!pkg) throw fail("Choose a package.");

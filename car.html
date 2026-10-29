@@ -80,7 +80,7 @@
   function throughUs(car){
     var sw = TCD.lang === "sw";
     return '<div class="panel through-us"><div class="way-label">' + (sw ? "Njia 2: Nunua kupitia sisi" : "Option 2: Let us manage it for you") + '</div>' +
-      '<b style="font-size:17px">🤝 ' + (sw ? "Nunua kupitia Tanzania Car Dealers" : "Buy through Tanzania Car Dealers") + '</b>' +
+      '<b style="font-size:17px">🤝 ' + (sw ? "Nunua kupitia Tanzania Car Dealers" : "Buy through Tanzania Car Dealers") + '</b> <span class="free-badge">' + (sw ? "BURE" : "FREE") + '</span>' +
       '<ul class="tips">' + (sw
         ? ["Tunakagua gari na nyaraka zake", "Tunapanga ukaguzi wa fundi", "Tunajadiliana bei kwa niaba yako", "Malipo salama na uhamisho wa umiliki TRA"]
         : ["We check the car and its papers", "We book a mechanic inspection", "We negotiate the price for you", "Safe payment and TRA ownership transfer"]).map(function(x){ return "<li>✓ " + x + "</li>"; }).join("") + '</ul>' +

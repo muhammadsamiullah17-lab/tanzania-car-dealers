@@ -7,6 +7,7 @@ import { users, publicUser } from "../lib/users.js";
 import { checkNewPassword, hashPassword, verifyPassword } from "../lib/secure.js";
 import { members, cleanPhone, profileFields, newMember, missing, selfView, saveDoc, DOC_KINDS, ACCOUNT_TYPES } from "../lib/members.js";
 import { deals, buyerView } from "../lib/deals.js";
+import { getPaySettings } from "../lib/payments.js";
 import { newId } from "../lib/store.js";
 
 function fail(message, status = 400) {
@@ -56,7 +57,7 @@ const open = {
 
 const actions = {
   async me(b, me) {
-    return { user: selfView(me), docKinds: DOC_KINDS[me.type] };
+    return { user: selfView(me), docKinds: DOC_KINDS[me.type], paidEnabled: Boolean((await getPaySettings()).paidEnabled) };
   },
 
   async updateProfile(b, me) {

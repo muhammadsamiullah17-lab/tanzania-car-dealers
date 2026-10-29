@@ -204,3 +204,4 @@ details#more summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--m
 .deal-steps span.on{background:var(--green);color:#fff}
 .way-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}
 .through-us{border-color:var(--green)}
+.free-badge{display:inline-block;font-size:12px;font-weight:800;padding:2px 9px;border-radius:999px;background:var(--green);color:#fff;letter-spacing:.03em;vertical-align:middle}

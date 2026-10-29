@@ -131,7 +131,7 @@
           '<span class="pill ' + a.status + '">' + label + '</span></div></div>' +
           '<div class="btns" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' +
             (a.status === "approved" ? '<a class="btn btn-ghost btn-sm" href="/car?id=' + a.id + '">View</a>' : "") +
-            (a.status === "approved" ? '<a class="btn btn-main btn-sm" href="/pay?ad=' + a.id + '">⭐ Feature</a>' : "") +
+            (a.status === "approved" && state.paidEnabled ? '<a class="btn btn-main btn-sm" href="/pay?ad=' + a.id + '">⭐ Feature</a>' : "") +
             (live ? '<a class="btn btn-ghost btn-sm" href="/sell?edit=' + a.id + '">Edit</a><button class="btn btn-ghost btn-sm" data-ad-act="price">Change price</button><button class="btn btn-ghost btn-sm" data-ad-act="sold">Mark sold</button>' : "") +
             '<button class="btn btn-danger btn-sm" data-ad-act="delete">Delete</button></div></div>';
       }).join("") : '<p class="empty" style="padding:10px 0">No cars yet.</p>') + '</div>';
@@ -139,11 +139,11 @@
 
   var ORDER_LABEL = { pending: "Not paid yet", pushed: "Waiting for PIN", awaiting_check: "Checking payment", paid: "Paid", activated: "Active", rejected: "Not confirmed", failed: "Failed", cancelled: "Cancelled" };
   function paymentsPanel(){
-    var u = state.user; if (u.status !== "verified") return "";
-    var dealerBox = u.type === "dealer" && u.dealerId ? '<div class="sell-band" style="margin-bottom:14px;padding:18px"><div><b>Dealer package</b><p style="margin:4px 0 0">Silver or Gold: be shown first on the Dealers page. Gold also features all your live cars.</p></div><a class="btn btn-main btn-sm" href="/pay?dealer=1">Choose a package</a></div>' : "";
+    var u = state.user; if (u.status !== "verified" || (!state.paidEnabled && !state.orders.length)) return "";
+    var dealerBox = u.type === "dealer" && u.dealerId && state.paidEnabled ? '<div class="sell-band" style="margin-bottom:14px;padding:18px"><div><b>Dealer package</b><p style="margin:4px 0 0">Silver or Gold: be shown first on the Dealers page. Gold also features all your live cars.</p></div><a class="btn btn-main btn-sm" href="/pay?dealer=1">Choose a package</a></div>' : "";
     var list = state.orders.slice(0, 10);
     return '<div class="panel"><h2 style="font-size:20px">Featured ads and payments</h2>' + dealerBox +
-      (list.length ? list.map(function(o){
+      (list.length || !state.paidEnabled ? list.map(function(o){
         var open = ["pending", "pushed", "awaiting_check", "rejected"].indexOf(o.status) !== -1;
         return '<div class="myad"><div><b>' + esc(o.packageName) + '</b> · ' + esc(o.itemTitle || "") + '<div class="hint" style="margin:2px 0 0">' + esc(o.ref) + " · " + TCD.money(o.amount) + " · " + new Date(o.createdAt).toLocaleDateString() +
           (o.activeUntil && o.status === "activated" ? " · active until " + new Date(o.activeUntil).toLocaleDateString() : "") + '</div></div>' +
@@ -192,7 +192,7 @@
 
   function load(){
     return Promise.all([call("me"), call("myAds"), call("myDeals")]).then(function(r){
-      state.user = r[0].user; state.docKinds = r[0].docKinds; state.ads = r[1].ads; state.deals = r[2].deals; render();
+      state.user = r[0].user; state.paidEnabled = r[0].paidEnabled; state.docKinds = r[0].docKinds; state.ads = r[1].ads; state.deals = r[2].deals; render();
       if (state.user.status === "verified") TCD.api("pay", "myOrders").then(function(j){ state.orders = j.orders; render(); }).catch(function(){});
       if (/new=1/.test(location.search)) { flash(state.user.type === "buyer" ? "Welcome! Your account is ready." : "Account created! Now add your details and documents."); history.replaceState(null, "", "/account"); }
     }).catch(function(ex){ root.innerHTML = '<p class="notice err">' + esc(ex.message) + '</p>'; });
