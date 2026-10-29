@@ -13,31 +13,31 @@
 <body>
 <section class="hero">
   <div class="wrap">
-    <h1>Buy and sell cars in <span>Tanzania</span>.</h1>
-    <p>Browse cars from verified private sellers and verified dealers. Every seller is checked by our team, with ID documents and a phone call, before they can post.</p>
+    <h1><span data-t style="color:inherit">Buy and sell cars in</span> <span>Tanzania</span>.</h1>
+    <p data-t>Browse cars from verified private sellers and verified dealers. Every seller is checked by our team, with ID documents and a phone call, before they can post.</p>
     <div class="cta">
-      <a class="btn btn-main" href="/signup">Create an account to sell</a>
-      <a class="btn btn-ghost" href="#stock">Browse cars</a>
+      <a class="btn btn-main" href="/signup" data-t>Create an account to sell</a>
+      <a class="btn btn-ghost" href="#stock" data-t>Browse cars</a>
     </div>
     <div class="stats">
-      <div><b id="stat-count">–</b><span>cars for sale</span></div>
-      <div><b id="stat-dealers">–</b><span>dealers</span></div>
-      <div><b>100%</b><span>verified sellers</span></div>
+      <div><b id="stat-count">–</b><span data-t>cars for sale</span></div>
+      <div><b id="stat-dealers">–</b><span data-t>dealers</span></div>
+      <div><b>100%</b><span data-t>verified sellers</span></div>
     </div>
   </div>
 </section>
 
 <section id="stock">
   <div class="wrap">
-    <h2>Cars for sale</h2>
-    <p class="sub">Featured cars are shown first. Tap a car for photos and details, or ask the seller on WhatsApp.</p>
+    <h2 data-t>Cars for sale</h2>
+    <p class="sub" data-t>Featured cars are shown first. Tap a car for photos and details, or ask the seller on WhatsApp.</p>
     <form class="search" id="search" onsubmit="return false">
       <div class="filters">
-        <input name="q" type="search" placeholder="Search make or model, e.g. Prado">
-        <select name="make"><option value="">All makes</option></select>
-        <select name="body"><option value="">All body types</option></select>
-        <select name="city"><option value="">All cities</option></select>
-        <select name="sort">
+        <input name="q" type="search" placeholder="Search make or model, e.g. Prado" data-tp>
+        <select name="make" data-t-opts><option value="">All makes</option></select>
+        <select name="body" data-t-opts><option value="">All body types</option></select>
+        <select name="city" data-t-opts><option value="">All cities</option></select>
+        <select name="sort" data-t-opts>
           <option value="">Featured first, newest</option>
           <option value="price-asc">Price: low to high</option>
           <option value="price-desc">Price: high to low</option>
@@ -45,21 +45,23 @@
           <option value="km-asc">Mileage: lowest first</option>
         </select>
       </div>
-      <details id="more"><summary>More filters</summary>
+      <details id="more"><summary data-t>More filters</summary>
         <div class="filters more">
-          <input name="pmin" type="number" min="0" step="1000000" placeholder="Min price (TZS)">
-          <input name="pmax" type="number" min="0" step="1000000" placeholder="Max price (TZS)">
-          <input name="ymin" type="number" min="1970" placeholder="Year from">
-          <input name="ymax" type="number" min="1970" placeholder="Year to">
-          <input name="kmax" type="number" min="0" step="10000" placeholder="Max mileage (km)">
-          <select name="gearbox"><option value="">Any gearbox</option><option>Automatic</option><option>Manual</option></select>
-          <select name="fuel"><option value="">Any fuel</option><option>Petrol</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select>
-          <select name="drive"><option value="">2WD or 4WD</option><option>2WD</option><option>4WD</option></select>
-          <select name="seller"><option value="">Any seller</option><option value="private">Private sellers</option><option value="dealer">Dealers</option></select>
-          <label class="check"><input type="checkbox" name="photos" value="1"> With photos only</label>
+          <input name="pmin" type="number" min="0" step="1000000" placeholder="Min price (TZS)" data-tp>
+          <input name="pmax" type="number" min="0" step="1000000" placeholder="Max price (TZS)" data-tp>
+          <input name="ymin" type="number" min="1970" placeholder="Year from" data-tp>
+          <input name="ymax" type="number" min="1970" placeholder="Year to" data-tp>
+          <input name="kmax" type="number" min="0" step="10000" placeholder="Max mileage (km)" data-tp>
+          <select name="gearbox" data-t-opts><option value="">Any gearbox</option><option>Automatic</option><option>Manual</option></select>
+          <select name="fuel" data-t-opts><option value="">Any fuel</option><option>Petrol</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select>
+          <select name="drive" data-t-opts><option value="">2WD or 4WD</option><option>2WD</option><option>4WD</option></select>
+          <select name="seller" data-t-opts><option value="">Any seller</option><option value="private">Private sellers</option><option value="dealer">Dealers</option></select>
+          <label class="check"><input type="checkbox" name="photos" value="1"> <span data-t>With photos only</span></label>
+          <label class="check"><input type="checkbox" name="inspected" value="1"> <span data-t>Inspected only</span></label>
         </div>
       </details>
-      <div class="result-bar"><span id="count"></span><button type="button" class="btn btn-ghost btn-sm" id="clear">Clear filters</button></div>
+      <div class="result-bar"><span id="count"></span><span class="btns" style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-ghost btn-sm" id="notify">🔔 <span data-t>Notify me about new cars like this</span></button><button type="button" class="btn btn-ghost btn-sm" id="clear" data-t>Clear filters</button></span></div>
+      <div id="notify-box" class="panel" hidden style="margin-bottom:16px"></div>
     </form>
     <div class="grid" id="grid"><p class="empty">Loading cars…</p></div>
     <p class="empty" id="empty" hidden>No cars match. Try fewer filters, or <a href="/japan#request">ask us to find one from Japan</a>.</p>
@@ -70,8 +72,8 @@
 <section style="padding-top:0">
   <div class="wrap">
     <div class="sell-band">
-      <div><h2>Selling a car?</h2><p>Create an account, upload your ID (or business documents), and once our team verifies you, post your cars. Buyers message you on WhatsApp.</p></div>
-      <a class="btn btn-main" href="/signup">Create an account</a>
+      <div><h2 data-t>Selling a car?</h2><p data-t>Create an account, upload your ID (or business documents), and once our team verifies you, post your cars. Buyers message you on WhatsApp.</p></div>
+      <a class="btn btn-main" href="/signup" data-t>Create an account</a>
     </div>
   </div>
 </section>
@@ -79,21 +81,21 @@
 <section style="padding-top:0">
   <div class="wrap">
     <div class="sell-band" style="background:linear-gradient(120deg,color-mix(in srgb,#bc002d 10%,var(--card)),var(--card))">
-      <div><h2>🇯🇵 Import a car from Japan</h2><p>See cars from Japanese auctions with the full cost in Dar es Salaam: price, shipping and TRA taxes. Or tell us what you want and we find it.</p></div>
-      <a class="btn btn-main" href="/japan">See cars from Japan</a>
+      <div><h2>🇯🇵 <span data-t>Import a car from Japan</span></h2><p data-t>See cars from Japanese auctions with the full cost in Dar es Salaam: price, shipping and TRA taxes. Or tell us what you want and we find it.</p></div>
+      <a class="btn btn-main" href="/japan" data-t>See cars from Japan</a>
     </div>
   </div>
 </section>
 
 <section id="why" style="padding-top:0">
   <div class="wrap">
-    <h2>Why use Tanzania Car Dealers</h2>
-    <p class="sub">Buying and selling a car should be simple and safe.</p>
+    <h2 data-t>Why use Tanzania Car Dealers</h2>
+    <p class="sub" data-t>Buying and selling a car should be simple and safe.</p>
     <div class="why">
-      <div><span class="n">✅</span><h3>Every seller is verified</h3><p>We check ID or business documents and call every seller before they can post, and review each car before it goes live.</p></div>
-      <div><span class="n">💬</span><h3>Talk on WhatsApp</h3><p>Chat with sellers directly, get more photos and videos, and agree on a viewing.</p></div>
-      <div><span class="n">🏢</span><h3>Trusted dealers</h3><p>Verified dealers have their own page with all their stock and location.</p></div>
-      <div><span class="n">📄</span><h3>Paperwork help</h3><p>We can help with TRA registration, ownership transfer and insurance.</p></div>
+      <div><span class="n">✅</span><h3 data-t>Every seller is verified</h3><p>We check ID or business documents and call every seller before they can post, and review each car before it goes live.</p></div>
+      <div><span class="n">💬</span><h3 data-t>Talk on WhatsApp</h3><p>Chat with sellers directly, get more photos and videos, and agree on a viewing.</p></div>
+      <div><span class="n">🏢</span><h3 data-t>Trusted dealers</h3><p>Verified dealers have their own page with all their stock and location.</p></div>
+      <div><span class="n">📄</span><h3 data-t>Paperwork help</h3><p>We can help with TRA registration, ownership transfer and insurance.</p></div>
     </div>
   </div>
 </section>
@@ -107,7 +109,7 @@
   var grid = document.getElementById("grid"), empty = document.getElementById("empty"), pager = document.getElementById("pager");
   var form = document.getElementById("search"), f = form.elements;
   var PER_PAGE = 24, page = 1, market;
-  var KEYS = ["q", "make", "body", "city", "sort", "pmin", "pmax", "ymin", "ymax", "kmax", "gearbox", "fuel", "drive", "seller", "photos"];
+  var KEYS = ["q", "make", "body", "city", "sort", "pmin", "pmax", "ymin", "ymax", "kmax", "gearbox", "fuel", "drive", "seller", "photos", "inspected"];
 
   function fill(select, values){
     Array.from(new Set(values)).filter(Boolean).sort().forEach(function(v){ select.add(new Option(v, v)); });
@@ -118,7 +120,7 @@
     var p = new URLSearchParams(location.search);
     KEYS.forEach(function(k){ if (f[k].type === "checkbox") f[k].checked = p.get(k) === "1"; else if (p.has(k)) f[k].value = p.get(k); });
     page = Math.max(1, Number(p.get("page")) || 1);
-    if (["pmin", "pmax", "ymin", "ymax", "kmax", "gearbox", "fuel", "drive", "seller", "photos"].some(function(k){ return p.get(k); })) document.getElementById("more").open = true;
+    if (["pmin", "pmax", "ymin", "ymax", "kmax", "gearbox", "fuel", "drive", "seller", "photos", "inspected"].some(function(k){ return p.get(k); })) document.getElementById("more").open = true;
   }
   function writeUrl(){
     var p = new URLSearchParams();
@@ -144,6 +146,7 @@
       if (val("drive") && (c.drive || "2WD") !== val("drive")) return false;
       if (val("seller") && sellerKind(c) !== val("seller")) return false;
       if (val("photos") && !(c.photos && c.photos.length)) return false;
+      if (val("inspected") && !c.inspection) return false;
       return true;
     });
     var sorts = {
@@ -161,7 +164,7 @@
     grid.innerHTML = shown.map(function(c){ return TCD.card(c, market.dealersById); }).join("");
     empty.hidden = list.length > 0;
     document.getElementById("count").textContent = list.length
-      ? (list.length === 1 ? "1 car" : list.length + " cars") + (pages > 1 ? " · showing " + ((page - 1) * PER_PAGE + 1) + "–" + ((page - 1) * PER_PAGE + shown.length) : "")
+      ? (list.length === 1 ? (TCD.lang === "sw" ? "Gari 1" : "1 car") : list.length + (TCD.lang === "sw" ? " magari" : " cars")) + (pages > 1 ? " · showing " + ((page - 1) * PER_PAGE + 1) + "–" + ((page - 1) * PER_PAGE + shown.length) : "")
       : "";
     var links = [];
     if (pages > 1) {
@@ -181,6 +184,25 @@
     document.getElementById("stock").scrollIntoView({ behavior: "smooth" });
   });
   document.getElementById("clear").addEventListener("click", function(){ form.reset(); page = 1; render(); });
+
+  // "Notify me": save this search with a WhatsApp number; staff send matching new cars.
+  var box = document.getElementById("notify-box");
+  document.getElementById("notify").addEventListener("click", function(){
+    var filters = {}; KEYS.forEach(function(k){ if (k !== "sort" && val(k)) filters[k] = val(k); });
+    if (!Object.keys(filters).length) { box.hidden = false; box.innerHTML = '<p class="notice err" style="margin:0">' + TCD.esc(TCD.lang === "sw" ? "Chagua kwanza aina, bei au kichujio kingine." : "First choose a make, a budget or another filter, then press Notify me.") + '</p>'; return; }
+    box.hidden = false;
+    box.innerHTML = '<b>' + (TCD.lang === "sw" ? "Tutakujulisha kwa WhatsApp gari jipya linalolingana likiwekwa." : "We will WhatsApp you when a new car like this is listed.") + '</b>' +
+      '<form id="notify-form" class="form-grid" style="margin-top:10px"><div><label>' + (TCD.lang === "sw" ? "Jina lako" : "Your name") + '</label><input name="name" maxlength="60" autocomplete="name"></div>' +
+      '<div><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="0712 345 678" autocomplete="tel"></div><input class="hp" name="website" tabindex="-1" autocomplete="off">' +
+      '<div class="full"><button class="btn btn-main btn-sm">' + (TCD.lang === "sw" ? "Nijulishe" : "Notify me") + '</button> <span class="hint">' + TCD.esc(Object.keys(filters).map(function(k){ return k + ": " + filters[k]; }).join(" · ")) + '</span></div></form>';
+    document.getElementById("notify-form").addEventListener("submit", function(e){
+      e.preventDefault(); var nf = e.target.elements;
+      fetch("/api/public", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "alert", name: nf.name.value, phone: nf.phone.value, website: nf.website.value, filters: filters }) })
+        .then(function(r){ return r.json().then(function(j){ if (!r.ok) throw new Error(j.error); }); })
+        .then(function(){ box.innerHTML = '<p class="notice ok" style="margin:0">' + (TCD.lang === "sw" ? "Asante! Tutakutumia magari mapya yanayolingana kwa WhatsApp." : "Thank you! We will send you matching new cars on WhatsApp.") + '</p>'; })
+        .catch(function(ex){ alert(ex.message); });
+    });
+  });
 
   TCD.loadMarket().then(function(m){
     market = m;

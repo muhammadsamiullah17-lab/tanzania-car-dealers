@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saved cars · Tanzania Car Dealers</title>
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<section>
+  <div class="wrap">
+    <h1 style="font-size:32px;margin:0 0 6px">♥ <span data-t>Your saved cars</span></h1>
+    <p class="sub" data-t>Cars you save with ♡ are kept on this phone or computer.</p>
+    <div class="grid" id="grid"><p class="empty">Loading…</p></div>
+    <p class="empty" id="empty" hidden><span data-t>No saved cars yet.</span> <a href="/#stock" data-t>Browse cars</a></p>
+  </div>
+</section>
+<script src="/config.js"></script>
+<script src="/cars.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("saved");
+  var grid = document.getElementById("grid"), empty = document.getElementById("empty");
+  TCD.loadMarket().then(function(m){
+    function render(){
+      var ids = TCD.saved.list();
+      var cars = ids.map(function(id){ return m.cars.filter(function(c){ return c.id === id; })[0]; }).filter(Boolean);
+      grid.innerHTML = cars.map(function(c){ return TCD.card(c, m.dealersById); }).join("");
+      empty.hidden = cars.length > 0;
+    }
+    render();
+    // Unsaving a car on this page removes it from the list.
+    document.addEventListener("click", function(e){ if (e.target.closest("[data-save]")) setTimeout(render, 0); });
+  });
+})();
+</script>
+</body>
+</html>

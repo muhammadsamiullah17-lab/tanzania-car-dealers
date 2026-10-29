@@ -6,6 +6,7 @@ import { checkSetupKey, issueToken, readToken } from "../lib/auth.js";
 import { users, ROLES, cleanUsername, checkNewPassword, hashPassword, verifyPassword, newUser, publicUser } from "../lib/users.js";
 import { members, staffView, readDoc, removeMember } from "../lib/members.js";
 import { jcars, jrequests, getSettings, saveSettings, SALE_TYPES, JSTATUSES, REQUEST_STATUSES } from "../lib/japan.js";
+import { alerts, reports, inspectionFields } from "../lib/buyers.js";
 
 const BODIES = ["Hatchback", "Sedan", "Wagon", "Coupe", "SUV", "MiniVan", "Van", "Pickup", "Truck", "Bus", "Other"];
 
@@ -259,6 +260,66 @@ const actions = {
       m.updatedAt = new Date().toISOString();
       await members.save(m);
       return { ok: true };
+    },
+  },
+
+  // ---- Trust: inspections, buyer alerts, reports ----
+
+  saveInspection: {
+    async run(b, me) {
+      const ad = await ads.get(b.id);
+      if (!ad) throw fail("Ad not found", 404);
+      ad.inspection = inspectionFields(b.inspection || {}, me.username);
+      ad.updatedAt = new Date().toISOString();
+      ad.updatedBy = me.username;
+      await ads.save(ad);
+      return { ad };
+    },
+  },
+
+  removeInspection: {
+    roles: VERIFIERS,
+    async run(b, me) {
+      const ad = await ads.get(b.id);
+      if (!ad) throw fail("Ad not found", 404);
+      delete ad.inspection;
+      ad.updatedAt = new Date().toISOString();
+      ad.updatedBy = me.username;
+      await ads.save(ad);
+      return { ad };
+    },
+  },
+
+  listAlerts: { run: async () => ({ alerts: (await alerts.all()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }) },
+
+  // notifiedAdIds: cars we just sent this buyer on WhatsApp, so they aren't suggested again.
+  updateAlert: {
+    async run(b, me) {
+      const a = await alerts.get(b.id);
+      if (!a) throw fail("Alert not found", 404);
+      if (Array.isArray(b.notifiedAdIds)) a.notified = Array.from(new Set((a.notified || []).concat(b.notifiedAdIds.map(String)))).slice(-500);
+      if (b.active !== undefined) a.active = Boolean(b.active);
+      a.lastNotifiedAt = Array.isArray(b.notifiedAdIds) ? new Date().toISOString() : a.lastNotifiedAt;
+      a.updatedBy = me.username;
+      await alerts.save(a);
+      return { alert: a };
+    },
+  },
+
+  deleteAlert: { roles: VERIFIERS, run: async (b) => { await alerts.remove(b.id); return { ok: true }; } },
+
+  listReports: { run: async () => ({ reports: (await reports.all()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }) },
+
+  resolveReport: {
+    async run(b, me) {
+      const r = await reports.get(b.id);
+      if (!r) throw fail("Report not found", 404);
+      r.status = b.status === "open" ? "open" : "resolved";
+      r.resolution = text(b.resolution, 500);
+      r.resolvedBy = me.username;
+      r.resolvedAt = new Date().toISOString();
+      await reports.save(r);
+      return { report: r };
     },
   },
 

@@ -162,3 +162,27 @@ details#more summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--m
 .lb-next{right:14px;top:50%;transform:translateY(-50%)}
 .lb-count{position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#fff;font-size:14px}
 .feature-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 14px;font-size:14.5px}
+.car{position:relative}
+.save-btn{position:absolute;top:8px;right:8px;z-index:2;width:34px;height:34px;border-radius:50%;border:0;background:rgba(0,0,0,.45);color:#fff;font-size:17px;line-height:1;cursor:pointer}
+.car .badge-featured{right:50px}
+.save-btn.on{background:#fff;color:#e0245e}
+.save-btn.big{position:static;width:auto;height:auto;border-radius:10px;padding:11px 14px;background:var(--card);color:var(--text);border:1px solid var(--line);font:600 15px Inter,sans-serif}
+.save-btn.big.on{color:#e0245e;border-color:#e0245e}
+.badge-inspected{position:absolute;left:10px;bottom:10px;background:var(--green);color:#fff;font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px}
+.btn-lang{padding:9px 11px;font-size:13px}
+.score{display:grid;grid-template-columns:170px 1fr 44px;gap:10px;align-items:center;font-size:14px;margin:6px 0}
+.score .bar{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.score .bar i{display:block;height:100%;background:var(--green)}
+.score .bar i.mid{background:#e0a400}
+.score .bar i.low{background:var(--danger)}
+.overall{display:flex;align-items:center;gap:14px;margin:8px 0 14px}
+.overall b{font-size:34px;color:var(--green-dark)}
+@media (max-width:760px){.score{grid-template-columns:120px 1fr 40px}.btn-lang{padding:8px 9px}}
+@media (max-width:760px){
+  .nav{flex-wrap:wrap;height:auto;padding-top:8px;padding-bottom:0;row-gap:6px}
+  .brand{font-size:13px;line-height:1.15;max-width:118px;gap:8px}
+  .brand .logo{width:30px;height:30px}
+  .nav nav{display:flex;order:3;flex-basis:100%;gap:18px;overflow-x:auto;white-space:nowrap;padding:6px 0 10px;font-size:14px;scrollbar-width:none}
+  .nav nav::-webkit-scrollbar{display:none}
+  .nav .actions{gap:6px}
+}

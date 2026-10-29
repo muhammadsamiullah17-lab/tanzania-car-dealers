@@ -15,6 +15,18 @@ Car marketplace for Tanzania. Every seller (private person or car dealer) create
 | `/dealers`, `/dealer?id=…` | Dealer list and dealer pages. Verified dealer accounts get a page automatically. |
 | `/admin` | Staff panel (see roles below). |
 
+## Selling, search and trust
+
+- **My cars** (in `/account`): edit (goes back to approval), change price (stays live, shows "Price reduced"), mark sold, delete.
+- Ads have engine cc, drive, assembly, registered in, previous owners and a features checklist (`lib/adfields.js`).
+- **Search** on `/`: ranges, gearbox, fuel, drive, seller type, with photos, inspected only, sorting, pages; filters live in the URL.
+- **Car page**: full-screen photos, features, similar cars, Call, Share, ♥ Save, and **Report this ad** with reasons.
+- **TCD Inspected**: staff add an inspection (overall /10, nine area scores, mileage/documents/accident checks, notes) from the ad row in admin; buyers see a badge and report.
+- **Saved cars** (`/saved`): kept in the buyer's browser, no account needed.
+- **Buyer alerts**: "Notify me about new cars like this" saves a search with a WhatsApp number; the admin **Buyer alerts** tab lists new matching cars with a ready WhatsApp message (sending is manual; no SMS/WhatsApp provider is connected).
+- **Reports** tab: reports from buyers, resolve with a note.
+- **Swahili**: EN/SW button in the header translates the public pages (header, home, search, cards, car page, saved). Strings live in `SW` in `assets/app.js`; pages mark text with `data-t` / `data-tp`.
+
 ## Import from Japan
 
 - `/japan`: cars staff can source from Japan (stock or auction), filters, an **import cost calculator**, and a **Find me a car** request form for logged-in customers.
