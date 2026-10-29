@@ -5,7 +5,7 @@ import { ads, dealers, files, newId, digits, sortListings, savePhoto, photoFileI
 import { checkSetupKey, issueToken, readToken } from "../lib/auth.js";
 import { users, ROLES, cleanUsername, checkNewPassword, hashPassword, verifyPassword, newUser, publicUser } from "../lib/users.js";
 import { members, staffView, readDoc, removeMember } from "../lib/members.js";
-import { jcars, jrequests, getSettings, saveSettings, SALE_TYPES, JSTATUSES, REQUEST_STATUSES } from "../lib/japan.js";
+import { jcars, jrequests, getSettings, saveSettings, SALE_TYPES, JSTATUSES, REQUEST_STATUSES, CONDITIONS } from "../lib/japan.js";
 import { alerts, reports, inspectionFields } from "../lib/buyers.js";
 import { deals, DEAL_STATUSES } from "../lib/deals.js";
 import { getSite, saveSite } from "../lib/site.js";
@@ -269,7 +269,14 @@ const actions = {
   // ---- Site settings (admins) ----
 
   getSite: { run: async () => ({ site: await getSite() }) },
-  saveSite: { roles: ADMIN, run: async (b, me) => ({ site: await saveSite(b.site || {}, me.username) }) },
+  // Admins change who can sell; admins and managers manage banners, notices and delivery prices.
+  saveSite: {
+    roles: VERIFIERS,
+    run: async (b, me) => {
+      if (me.role !== "admin" && b.site && b.site.privateSellersEnabled !== undefined) throw fail("Only admins can change who may sell.", 403);
+      return { site: await saveSite(b.site || {}, me.username) };
+    },
+  },
 
   // ---- Buy through us: deals our team manages for buyers ----
 
@@ -439,6 +446,7 @@ const actions = {
         body: BODIES.includes(b.body) ? b.body : "Other",
         color: text(b.color, 30), chassis: text(b.chassis, 30), auctionGrade: text(b.auctionGrade, 10),
         price, currency: b.currency === "USD" ? "USD" : "JPY",
+        condition: CONDITIONS.includes(b.condition) ? b.condition : "Used",
         saleType: SALE_TYPES.includes(b.saleType) ? b.saleType : "stock",
         auctionEnds: b.saleType === "auction" && b.auctionEnds ? new Date(b.auctionEnds).toISOString() : null,
         status: JSTATUSES.includes(b.status) ? b.status : "available",

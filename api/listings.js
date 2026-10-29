@@ -3,6 +3,7 @@
 // A car is Featured if it has Featured days left, or its dealer has an active Gold package.
 import { ads, dealers, publicAd, send } from "../lib/store.js";
 import { dealerTier } from "../lib/payments.js";
+import { getSite, publicSite } from "../lib/site.js";
 
 const TIER_ORDER = { gold: 0, silver: 1 };
 
@@ -29,16 +30,16 @@ export default async function handler(req, res) {
       const dealer = ad.dealerId ? await dealers.get(ad.dealerId) : null;
       const pd = dealer ? publicDealer(dealer) : null;
       res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
-      return send(res, 200, { ad: withFeatured(ad, pd ? { [pd.id]: pd } : {}), dealer: pd });
+      return send(res, 200, { ad: withFeatured(ad, pd ? { [pd.id]: pd } : {}), dealer: pd, site: publicSite(await getSite()) });
     }
-    const [allAds, allDealers] = await Promise.all([ads.all(), dealers.all()]);
+    const [allAds, allDealers, site] = await Promise.all([ads.all(), dealers.all(), getSite()]);
     const pubDealers = allDealers.map(publicDealer);
     const byId = Object.fromEntries(pubDealers.map((d) => [d.id, d]));
     const live = allAds.filter((a) => a.status === "approved").map((a) => withFeatured(a, byId))
       .sort((a, b) => (b.featured - a.featured) || (b.createdAt || "").localeCompare(a.createdAt || ""));
     pubDealers.sort((a, b) => ((TIER_ORDER[a.tier] ?? 9) - (TIER_ORDER[b.tier] ?? 9)) || a.name.localeCompare(b.name));
     res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
-    send(res, 200, { ads: live, dealers: pubDealers });
+    send(res, 200, { ads: live, dealers: pubDealers, site: publicSite(site) });
   } catch (e) {
     console.error(e);
     send(res, 500, { error: "Could not load listings" });

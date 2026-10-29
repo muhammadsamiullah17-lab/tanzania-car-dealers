@@ -81,6 +81,25 @@
     "Body type": "Muundo", "Colour": "Rangi", "Assembly": "Uundaji", "Registered in": "Limesajiliwa", "Previous owners": "Wamiliki wa awali", "Location": "Mahali", "Ad ID": "Namba ya tangazo",
     "Your saved cars": "Magari uliyohifadhi", "Cars you save with ♡ are kept on this phone or computer.": "Magari unayohifadhi kwa ♡ yanabaki kwenye simu au kompyuta hii.",
     "No saved cars yet.": "Bado hujahifadhi gari.", "Car not found": "Gari halikupatikana",
+    "Find your car": "Tafuta gari lako", "Search cars": "Tafuta magari", "Import from Japan": "Agiza kutoka Japan", "Import cost calculator": "Kikokotoo cha gharama za kuagiza",
+    "Register as a dealer": "Jisajili kama muuzaji wa magari", "Verified dealers": "Wauzaji waliothibitishwa", "Inspected cars": "Magari yaliyokaguliwa",
+    "Delivery across Tanzania": "Usafirishaji Tanzania nzima", "NOTICES": "MATANGAZO", "Browse by body type": "Tazama kwa muundo", "Tap a type to see the cars.": "Gusa muundo kuona magari.",
+    "See all cars →": "Tazama magari yote →", "New arrivals": "Magari mapya", "The latest cars on Tanzania Car Dealers.": "Magari mapya zaidi kwenye Tanzania Car Dealers.",
+    "How it works": "Inavyofanya kazi", "Find the right car": "Pata gari sahihi", "Check it with confidence": "Kagua kwa uhakika", "Drive it home": "Liendeshe nyumbani",
+    "Search cars from verified dealers in Tanzania, or import from Japan with the full cost shown in TZS.": "Tafuta magari kutoka kwa wauzaji waliothibitishwa Tanzania, au agiza kutoka Japan ukiona gharama kamili kwa TZS.",
+    "Look for the TCD Inspected badge, read the report, and see the car in person before you pay.": "Tafuta alama ya Imekaguliwa na TCD, soma ripoti, na liona gari ana kwa ana kabla ya kulipa.",
+    "Agree the price, pay safely, transfer ownership with TRA, and get it delivered to your city.": "Kubaliana bei, lipa kwa usalama, hamisha umiliki TRA, na liletewe mjini kwako.",
+    "Contact the seller directly": "Wasiliana na muuzaji moja kwa moja", "WhatsApp or call the dealer from any car page. Fast and simple.": "Tuma WhatsApp au piga simu kwa muuzaji kutoka ukurasa wa gari. Haraka na rahisi.",
+    "Let us manage it for you": "Tuachie tukusimamie", "We check the car and papers, book an inspection, negotiate the price, and handle safe payment and transfer.": "Tunakagua gari na nyaraka, tunapanga ukaguzi, tunajadiliana bei, na tunasimamia malipo salama na uhamisho.",
+    "Choose a car": "Chagua gari", "Auction and stock cars, updated by our team": "Magari ya mnada na ya stoo, yanasasishwa na timu yetu",
+    "Landed cost with TRA duty, excise and VAT": "Gharama kamili pamoja na ushuru wa TRA na VAT", "Shipping to Dar es Salaam and clearing": "Usafirishaji hadi Dar es Salaam na uondoshaji bandarini",
+    "Delivery to your city in Tanzania": "Kuletewa mjini kwako Tanzania", "Are you a car dealer?": "Je, wewe ni muuzaji wa magari?",
+    "Register your showroom, get verified, and list all your cars for free with your own dealer page.": "Sajili showroom yako, thibitishwa, na weka magari yako yote bure ukiwa na ukurasa wako.",
+    "We check business documents and call every dealer before they can post, and review each car before it goes live.": "Tunakagua nyaraka za biashara na kumpigia kila muuzaji kabla ya kuweka tangazo, na tunakagua kila gari kabla ya kuonekana.",
+    "Our team inspects cars and publishes a report with scores for engine, body, interior and more.": "Timu yetu inakagua magari na kutoa ripoti yenye alama za injini, bodi, ndani na zaidi.",
+    "From Dar es Salaam to Arusha, Mwanza, Dodoma, Mbeya, Zanzibar and more.": "Kutoka Dar es Salaam hadi Arusha, Mwanza, Dodoma, Mbeya, Zanzibar na kwingineko.",
+    "We can help with TRA registration, ownership transfer and insurance.": "Tunaweza kusaidia usajili TRA, uhamisho wa umiliki na bima.",
+    "Buy": "Nunua", "Sell": "Uza", "Contact": "Mawasiliano", "Any price": "Bei yoyote", "Delivery to your city": "Kuletewa mjini kwako", "Choose your city": "Chagua mji wako",
   };
   var lang = "en";
   try { lang = localStorage.getItem("tcd_lang") === "sw" ? "sw" : "en"; } catch (e) {}
@@ -115,6 +134,22 @@
     e.preventDefault(); e.stopPropagation(); saved.toggle(b.dataset.save);
   });
 
+  // Delivery from our Dar es Salaam yard to the buyer's city (prices set in Admin › Site settings).
+  function deliveryBox(list, note, fromCity) {
+    if (!list || !list.length) return "";
+    return '<div class="panel delivery"><b>🚚 ' + t("Delivery to your city") + '</b>' +
+      '<select data-delivery>' + '<option value="">' + t("Choose your city") + '</option>' + list.map(function (d, i) { return '<option value="' + i + '">' + esc(d.city) + '</option>'; }).join("") + '</select>' +
+      '<div class="out" data-delivery-out>' + (fromCity ? '<span class="hint">This car is in ' + esc(fromCity) + '.</span>' : "") + '</div>' +
+      (note ? '<p class="hint" style="margin:8px 0 0">' + esc(note) + '</p>' : "") + '</div>';
+  }
+  document.addEventListener("change", function (e) {
+    var sel = e.target.closest("[data-delivery]"); if (!sel) return;
+    var box = sel.closest(".delivery"), out = box.querySelector("[data-delivery-out]"), list = box._list || [];
+    var d = list[Number(sel.value)];
+    out.innerHTML = d ? (d.price ? "<b>" + money(d.price) + "</b> · " + esc(d.days || "") : "<b>" + (lang === "sw" ? "Bure" : "Free") + "</b> · " + esc(d.days || "")) : "";
+  });
+  function bindDelivery(root, list) { (root || document).querySelectorAll(".delivery").forEach(function (b) { b._list = list || []; }); }
+
   function inspectedBadge(car) {
     return car.inspection ? '<span class="badge-inspected">✓ ' + t("TCD Inspected") + ' ' + car.inspection.overall + '/10</span>' : "";
   }
@@ -138,14 +173,14 @@
   // Loads approved marketplace ads plus our own stock. Featured ads come first.
   function loadMarket() {
     return fetch("/api/listings").then(function (r) { return r.ok ? r.json() : { ads: [], dealers: [] }; })
-      .catch(function () { return { ads: [], dealers: [] }; })
+      .catch(function () { return { ads: [], dealers: [], site: {} }; })
       .then(function (data) {
         var dealersById = {};
         (data.dealers || []).forEach(function (d) { dealersById[d.id] = d; });
         var ads = data.ads || [];
         var featured = ads.filter(function (a) { return a.featured; });
         var rest = ads.filter(function (a) { return !a.featured; });
-        return { cars: featured.concat(houseCars(), rest), dealers: data.dealers || [], dealersById: dealersById };
+        return { cars: featured.concat(houseCars(), rest), dealers: data.dealers || [], dealersById: dealersById, site: data.site || {}, ads: ads };
       });
   }
 
@@ -223,8 +258,17 @@
     });
 
     var footer = document.createElement("footer");
-    footer.innerHTML = '<div class="wrap"><span>© ' + new Date().getFullYear() + ' ' + esc(S.name) + '. ' + t("All prices in Tanzanian Shillings.") + '</span>' +
-      '<span><a href="/sell">' + t("Sell your car") + '</a> · <a href="/dealers">' + t("Dealers") + '</a> · <a href="/saved">♥ ' + t("Saved") + '</a> · WhatsApp ' + esc(S.phoneDisplay) + '</span></div>';
+    footer.className = "site-foot";
+    var col = function (title, links) {
+      return '<div><h4>' + t(title) + '</h4>' + links.map(function (l) { return '<a href="' + l[1] + '"' + (l[2] ? ' target="_blank" rel="noopener"' : "") + '>' + t(l[0]) + '</a>'; }).join("") + '</div>';
+    };
+    footer.innerHTML = '<div class="wrap"><div class="cols">' +
+      '<div><a class="brand" href="/" style="color:#fff;display:flex;padding:0;margin-bottom:12px"><span class="logo"><svg width="22" height="22" viewBox="0 0 64 64"><path d="M8 38l6-12c1-2 3-3 5-3h26c2 0 4 1 5 3l6 12v8H8z" fill="#fcd116"/><circle cx="20" cy="46" r="6" fill="#111"/><circle cx="44" cy="46" r="6" fill="#111"/></svg></span>' + esc(S.name) + '</a>' +
+        '<p class="about">' + (lang === "sw" ? "Soko la magari linaloaminika Tanzania. Kila muuzaji anathibitishwa na timu yetu." : "Tanzania's trusted car marketplace. Every seller is verified by our team, and we can manage the whole purchase for you.") + '</p></div>' +
+      col("Buy", [["Cars for sale", "/#stock"], ["From Japan", "/japan"], ["Saved", "/saved"], ["Dealers", "/dealers"]]) +
+      col("Sell", [["Sell your car", "/sell"], ["Register as a dealer", "/signup?type=dealer"], ["Log in", "/login"]]) +
+      col("Contact", [["WhatsApp " + S.phoneDisplay, waLink(S.whatsapp, "Hello Tanzania Car Dealers!"), true], [S.email, "mailto:" + S.email], [S.location, "/#why"]]) +
+      '</div><div class="bottom"><span>© ' + new Date().getFullYear() + ' ' + esc(S.name) + '. ' + t("All prices in Tanzanian Shillings.") + '</span><span>' + (lang === "sw" ? "Imetengenezwa Tanzania 🇹🇿" : "Made for Tanzania 🇹🇿") + '</span></div></div>';
     document.body.appendChild(footer);
     applyI18n();
 
@@ -244,5 +288,6 @@
   window.TCD = { esc: esc, waLink: waLink, money: money, fmt: fmt, title: title, carSvg: carSvg, card: card, enquiry: enquiry,
     sellerLabel: sellerLabel, houseCars: houseCars, loadMarket: loadMarket, chrome: chrome, WA_ICON: WA_ICON,
     session: session, api: api, shrinkImage: shrinkImage, FEATURES: FEATURES,
-    t: t, lang: lang, applyI18n: applyI18n, saved: saved, saveButton: saveButton, inspectedBadge: inspectedBadge };
+    t: t, lang: lang, applyI18n: applyI18n, saved: saved, saveButton: saveButton, inspectedBadge: inspectedBadge,
+    deliveryBox: deliveryBox, bindDelivery: bindDelivery };
 })();

@@ -27,6 +27,13 @@ Car marketplace for Tanzania. Every seller (private person or car dealer) create
 - **Reports** tab: reports from buyers, resolve with a note.
 - **Swahili**: EN/SW button in the header translates the public pages (header, home, search, cards, car page, saved). Strings live in `SW` in `assets/app.js`; pages mark text with `data-t` / `data-tp`.
 
+## Design and home page
+
+- Shared look in `assets/style.css` (design layer at the end): Plus Jakarta Sans headings, green/gold/navy palette, light and dark mode.
+- Home page: photo banner (Admin › Site settings › banner photos; a drawn car when empty), quick search, cars-in-stock counter, browse by body type and make with counts, new arrivals, notices, how it works, Japan import band, dealer sign-up.
+- **Delivery across Tanzania**: prices per city from Dar es Salaam (Admin › Site settings) shown on every car and Japan car page. The starting prices are examples.
+- Japan stock can be **Coming soon**, sold as **Make an offer**, and marked with a **condition** (Used, Accident damaged, Not running, Flood damaged).
+
 ## Accounts and buying
 
 - The header always shows **Log in**. `/login` takes a phone number (customers) or staff ID; staff go to `/admin`, customers to `/account` (titled **Dealer dashboard** for dealers). Someone already logged in who opens `/login` goes straight to their page.

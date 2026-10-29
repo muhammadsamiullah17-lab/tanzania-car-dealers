@@ -7,23 +7,52 @@
 <meta name="description" content="Buy and sell used cars in Tanzania. Post your car for free, find trusted dealers, and chat with sellers on WhatsApp.">
 <link rel="icon" href="/assets/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
-<section class="hero">
+<section class="home-hero no-photo" id="hero">
+  <div class="slides" id="slides"></div>
+  <div class="shade"></div>
+  <div class="art" id="art" aria-hidden="true"></div>
+  <div class="wrap inner">
+    <div>
+      <div class="counter"><b id="stat-count">–</b> <span data-t>cars for sale</span> · <b id="stat-dealers">–</b> <span data-t>dealers</span></div>
+      <h1><span data-t style="color:inherit;background:none">Buy and sell cars in</span> <span>Tanzania</span></h1>
+      <p class="lead" id="lead">Verified car dealers, honest prices and cars imported from Japan. Contact sellers directly, or let our team manage the whole purchase for you.</p>
+      <div class="cta" style="display:flex;gap:12px;flex-wrap:wrap"><a class="btn btn-main" href="#stock" data-t>Browse cars</a><a class="btn btn-ghost" href="/japan" style="color:#fff;border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.08)">🇯🇵 <span data-t>Import from Japan</span></a></div>
+      <div class="trust"><span data-t>Verified dealers</span><span data-t>Inspected cars</span><span data-t>Delivery across Tanzania</span></div>
+    </div>
+    <form class="quick" id="quick" onsubmit="return false">
+      <h3 data-t>Find your car</h3>
+      <div class="qgrid">
+        <select name="make" data-t-opts><option value="">All makes</option></select>
+        <select name="body" data-t-opts><option value="">All body types</option></select>
+        <select name="pmax" data-t-opts><option value="">Any price</option><option value="15000000">Up to 15M TZS</option><option value="25000000">Up to 25M TZS</option><option value="40000000">Up to 40M TZS</option><option value="60000000">Up to 60M TZS</option><option value="100000000">Up to 100M TZS</option></select>
+        <select name="city" data-t-opts><option value="">All cities</option></select>
+        <input class="full" name="q" type="search" placeholder="Search make or model, e.g. Prado" data-tp>
+      </div>
+      <button class="btn btn-main" id="quick-go">🔍 <span data-t>Search cars</span></button>
+      <div class="alt"><a href="/japan#calc">🇯🇵 <span data-t>Import cost calculator</span></a><a href="/signup?type=dealer"><span data-t>Register as a dealer</span> →</a></div>
+    </form>
+  </div>
+  <div class="dots" id="dots"></div>
+</section>
+
+<section class="notices" id="notices" hidden><div class="wrap"><div class="panel"><span class="tag2" data-t>NOTICES</span><ul id="notice-list"></ul></div></div></section>
+
+<section id="browse">
   <div class="wrap">
-    <h1><span data-t style="color:inherit">Buy and sell cars in</span> <span>Tanzania</span>.</h1>
-    <p data-t>Browse cars from verified private sellers and verified dealers. Every seller is checked by our team, with ID documents and a phone call, before they can post.</p>
-    <div class="cta">
-      <a class="btn btn-main" href="/signup" data-t>Create an account to sell</a>
-      <a class="btn btn-ghost" href="#stock" data-t>Browse cars</a>
-    </div>
-    <div class="stats">
-      <div><b id="stat-count">–</b><span data-t>cars for sale</span></div>
-      <div><b id="stat-dealers">–</b><span data-t>dealers</span></div>
-      <div><b>100%</b><span data-t>verified sellers</span></div>
-    </div>
+    <div class="section-head"><div><h2 data-t>Browse by body type</h2><p data-t>Tap a type to see the cars.</p></div><a href="#stock" data-t>See all cars →</a></div>
+    <div class="types" id="types"></div>
+    <div class="makes" id="makes"></div>
+  </div>
+</section>
+
+<section id="new" style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head"><div><h2 data-t>New arrivals</h2><p data-t>The latest cars on Tanzania Car Dealers.</p></div><a href="#stock" data-t>See all cars →</a></div>
+    <div class="rail" id="rail"></div>
   </div>
 </section>
 
@@ -69,33 +98,43 @@
   </div>
 </section>
 
-<section style="padding-top:0">
+<section id="how" style="padding-top:0">
   <div class="wrap">
-    <div class="sell-band">
-      <div><h2 data-t>Selling a car?</h2><p data-t>Create an account, upload your ID (or business documents), and once our team verifies you, post your cars. Buyers message you on WhatsApp.</p></div>
-      <a class="btn btn-main" href="/signup" data-t>Create an account</a>
+    <div class="section-head"><div><h2 data-t>How it works</h2><p data-t>Buying a car should be simple and safe.</p></div></div>
+    <div class="steps3">
+      <div><h3 data-t>Find the right car</h3><p data-t>Search cars from verified dealers in Tanzania, or import from Japan with the full cost shown in TZS.</p></div>
+      <div><h3 data-t>Check it with confidence</h3><p data-t>Look for the TCD Inspected badge, read the report, and see the car in person before you pay.</p></div>
+      <div><h3 data-t>Drive it home</h3><p data-t>Agree the price, pay safely, transfer ownership with TRA, and get it delivered to your city.</p></div>
+    </div>
+    <div class="two-ways">
+      <div><h3>💬 <span data-t>Contact the seller directly</span></h3><p data-t>WhatsApp or call the dealer from any car page. Fast and simple.</p><a class="btn btn-ghost" href="#stock" data-t>Browse cars</a></div>
+      <div class="us"><h3>🤝 <span data-t>Let us manage it for you</span> <span class="free-badge">FREE</span></h3><p data-t>We check the car and papers, book an inspection, negotiate the price, and handle safe payment and transfer.</p><a class="btn btn-main" href="#stock" data-t>Choose a car</a></div>
     </div>
   </div>
 </section>
 
 <section style="padding-top:0">
   <div class="wrap">
-    <div class="sell-band" style="background:linear-gradient(120deg,color-mix(in srgb,#bc002d 10%,var(--card)),var(--card))">
-      <div><h2>🇯🇵 <span data-t>Import a car from Japan</span></h2><p data-t>See cars from Japanese auctions with the full cost in Dar es Salaam: price, shipping and TRA taxes. Or tell us what you want and we find it.</p></div>
-      <a class="btn btn-main" href="/japan" data-t>See cars from Japan</a>
+    <div class="dark-band">
+      <div><h2>🇯🇵 <span data-t>Import a car from Japan</span></h2><p data-t>See cars from Japanese auctions with the full cost in Dar es Salaam: price, shipping and TRA taxes. Or tell us what you want and we find it.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><a class="btn btn-main" href="/japan" data-t>See cars from Japan</a><a class="btn btn-ghost" href="/japan#calc" style="color:#fff;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)" data-t>Import cost calculator</a></div></div>
+      <ul><li data-t>Auction and stock cars, updated by our team</li><li data-t>Landed cost with TRA duty, excise and VAT</li><li data-t>Shipping to Dar es Salaam and clearing</li><li data-t>Delivery to your city in Tanzania</li></ul>
     </div>
   </div>
 </section>
 
 <section id="why" style="padding-top:0">
   <div class="wrap">
-    <h2 data-t>Why use Tanzania Car Dealers</h2>
-    <p class="sub" data-t>Buying and selling a car should be simple and safe.</p>
+    <div class="section-head"><div><h2 data-t>Why use Tanzania Car Dealers</h2><p data-t>Buying and selling a car should be simple and safe.</p></div></div>
     <div class="why">
-      <div><span class="n">✅</span><h3 data-t>Every seller is verified</h3><p>We check ID or business documents and call every seller before they can post, and review each car before it goes live.</p></div>
-      <div><span class="n">💬</span><h3 data-t>Talk on WhatsApp</h3><p>Chat with sellers directly, get more photos and videos, and agree on a viewing.</p></div>
-      <div><span class="n">🏢</span><h3 data-t>Trusted dealers</h3><p>Verified dealers have their own page with all their stock and location.</p></div>
-      <div><span class="n">📄</span><h3 data-t>Paperwork help</h3><p>We can help with TRA registration, ownership transfer and insurance.</p></div>
+      <div><span class="n">✅</span><h3 data-t>Every seller is verified</h3><p data-t>We check business documents and call every dealer before they can post, and review each car before it goes live.</p></div>
+      <div><span class="n">🔍</span><h3 data-t>Inspected cars</h3><p data-t>Our team inspects cars and publishes a report with scores for engine, body, interior and more.</p></div>
+      <div><span class="n">🚚</span><h3 data-t>Delivery across Tanzania</h3><p data-t>From Dar es Salaam to Arusha, Mwanza, Dodoma, Mbeya, Zanzibar and more.</p></div>
+      <div><span class="n">📄</span><h3 data-t>Paperwork help</h3><p data-t>We can help with TRA registration, ownership transfer and insurance.</p></div>
+    </div>
+    <div class="sell-band" style="margin-top:28px">
+      <div><h2 data-t>Are you a car dealer?</h2><p data-t>Register your showroom, get verified, and list all your cars for free with your own dealer page.</p></div>
+      <a class="btn btn-main" href="/signup?type=dealer" data-t>Register as a dealer</a>
     </div>
   </div>
 </section>
@@ -204,8 +243,71 @@
     });
   });
 
+  // ---- Home page extras: photo banner, quick search, body types, makes, new arrivals, notices ----
+  var esc = TCD.esc;
+  var BODY_ICONS = {
+    SUV: "M6 24l3-9c1-2 2-3 4-3h26c2 0 4 1 5 3l5 9h7c2 0 3 1 3 3v4H4v-4c0-2 1-3 2-3z",
+    Sedan: "M4 25l9-8c2-2 4-3 7-3h16c3 0 5 1 7 3l7 7h6c2 0 3 1 3 3v3H3v-3c0-1 0-2 1-2z",
+    Hatchback: "M6 25l6-9c1-2 3-3 5-3h18c3 0 5 2 6 4l5 8h8c2 0 3 1 3 3v3H5v-3c0-2 0-3 1-3z",
+    Pickup: "M3 24h30V14c0-1 1-2 2-2h11c2 0 3 1 4 2l6 8h6c1 0 2 1 2 2v7H3z",
+    Van: "M4 30V12c0-2 2-4 4-4h34c3 0 5 1 6 3l10 11v8z",
+    Wagon: "M4 25l7-10c1-2 3-3 5-3h30c2 0 3 1 4 3l6 9h4c2 0 3 1 3 3v4H3v-4c0-1 0-2 1-2z",
+    Coupe: "M4 26l12-8c3-2 6-3 10-3h10c4 0 7 1 10 4l6 5h6c2 0 2 1 2 3v3H3v-3c0-1 0-1 1-1z",
+    Truck: "M3 30V10c0-1 1-2 2-2h30v22zM37 30V16h12c2 0 3 1 4 2l6 7v5z",
+    Bus: "M4 30V9c0-2 2-3 4-3h48c2 0 3 1 3 3v21z",
+    Other: "M6 25l6-9c1-2 3-3 5-3h26c2 0 4 1 5 3l6 9h6v5H4v-5z",
+  };
+  function bodyIcon(b){ return '<svg viewBox="0 0 64 36" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="' + (BODY_ICONS[b] || BODY_ICONS.Other) + '"/><circle cx="17" cy="30" r="4.5" fill="var(--card)"/><circle cx="47" cy="30" r="4.5" fill="var(--card)"/></svg>'; }
+  function countBy(list, key){ var o = {}; list.forEach(function(c){ if (c[key]) o[c[key]] = (o[c[key]] || 0) + 1; }); return o; }
+  function applyFilter(set){
+    form.reset(); Object.keys(set).forEach(function(k){ if (f[k]) f[k].value = set[k]; });
+    page = 1; render(); document.getElementById("stock").scrollIntoView({ behavior: "smooth" });
+  }
+  function setupHome(m){
+    var site = m.site || {}, banners = site.banners || [];
+    var hero = document.getElementById("hero"), slides = document.getElementById("slides"), dots = document.getElementById("dots");
+    if (banners.length) {
+      hero.classList.remove("no-photo");
+      slides.innerHTML = banners.map(function(u, i){ return '<div class="' + (i ? "" : "on") + '" style="background-image:url(' + esc(u) + ')"></div>'; }).join("");
+      if (banners.length > 1) {
+        dots.innerHTML = banners.map(function(u, i){ return '<button type="button" aria-label="Photo ' + (i + 1) + '" class="' + (i ? "" : "on") + '" data-i="' + i + '"></button>'; }).join("");
+        var cur = 0, show = function(i){ cur = i; slides.querySelectorAll("div").forEach(function(d, j){ d.classList.toggle("on", j === i); }); dots.querySelectorAll("button").forEach(function(d, j){ d.classList.toggle("on", j === i); }); };
+        dots.addEventListener("click", function(e){ var b = e.target.closest("[data-i]"); if (b) show(Number(b.dataset.i)); });
+        setInterval(function(){ show((cur + 1) % banners.length); }, 6500);
+      }
+    } else document.getElementById("art").innerHTML = TCD.carSvg("#ffc629");
+    // quick search fills the main search below
+    var q = document.getElementById("quick").elements;
+    fill(q.make, m.cars.map(function(c){ return c.make; })); fill(q.body, m.cars.map(function(c){ return c.body; })); fill(q.city, m.cars.map(function(c){ return c.city; }));
+    document.getElementById("quick-go").addEventListener("click", function(){
+      var set = {}; ["make", "body", "pmax", "city", "q"].forEach(function(k){ if (q[k].value) set[k] = q[k].value; }); applyFilter(set);
+    });
+    // body types and makes with counts (like Sococara)
+    var bodies = countBy(m.cars, "body"), makes = countBy(m.cars, "make");
+    document.getElementById("types").innerHTML = Object.keys(bodies).sort(function(a, b){ return bodies[b] - bodies[a]; }).map(function(b){
+      return '<button type="button" class="type" data-body="' + esc(b) + '">' + bodyIcon(b) + '<b>' + esc(b) + '</b><span>' + bodies[b] + (bodies[b] === 1 ? " car" : " cars") + '</span></button>'; }).join("");
+    document.getElementById("makes").innerHTML = Object.keys(makes).sort(function(a, b){ return makes[b] - makes[a]; }).map(function(k){
+      return '<button type="button" data-make="' + esc(k) + '">' + esc(k) + '<span>' + makes[k] + '</span></button>'; }).join("");
+    document.getElementById("browse").addEventListener("click", function(e){
+      var t = e.target.closest("[data-body]"), mk = e.target.closest("[data-make]");
+      if (t) applyFilter({ body: t.dataset.body }); if (mk) applyFilter({ make: mk.dataset.make });
+    });
+    // new arrivals: newest marketplace cars first, then our own stock
+    var fresh = (m.ads || []).slice().sort(function(a, b){ return (b.createdAt || "").localeCompare(a.createdAt || ""); }).concat(TCD.houseCars()).slice(0, 10);
+    document.getElementById("rail").innerHTML = fresh.map(function(c){ return TCD.card(c, m.dealersById); }).join("");
+    // notices from Admin › Site settings
+    var notes = site.notices || [];
+    if (notes.length) {
+      document.getElementById("notices").hidden = false;
+      document.getElementById("notice-list").innerHTML = notes.slice(0, 3).map(function(n){
+        return '<li><time>' + esc(n.date) + '</time>' + (n.text ? '<details><summary>' + esc(n.title) + '</summary><p>' + esc(n.text) + '</p></details>' : '<span>' + esc(n.title) + '</span>') + '</li>'; }).join("");
+    }
+    TCD.applyI18n(document.getElementById("quick"));
+  }
+
   TCD.loadMarket().then(function(m){
     market = m;
+    setupHome(m);
     fill(f.make, m.cars.map(function(c){ return c.make; }));
     fill(f.body, m.cars.map(function(c){ return c.body; }));
     fill(f.city, m.cars.map(function(c){ return c.city; }));

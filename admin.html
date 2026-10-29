@@ -7,7 +7,7 @@
 <title>Admin · Tanzania Car Dealers</title>
 <link rel="icon" href="/assets/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/style.css">
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
@@ -151,7 +151,8 @@
     if (canVerify()) t.push(["pay-settings", "Payment settings"]);
     t.push(["alerts", "🔔 Buyer alerts"], ["reports", "⚑ Reports"], ["japan", "🇯🇵 Japan stock"], ["requests", "Import requests"]);
     if (canVerify()) t.push(["import-settings", "Import settings"]);
-    if (isAdmin()) t.push(["users", "Staff users"], ["site", "⚙ Site settings"]);
+    if (canVerify()) t.push(["site", "⚙ Site settings"]);
+    if (isAdmin()) t.push(["users", "Staff users"]);
     return t;
   }
   function render(){
@@ -173,24 +174,58 @@
       : state.tab === "import-settings" ? settingsView() : state.tab === "site" ? siteView() : state.tab === "deals" ? dealsView() : state.tab === "payments" ? paymentsView() : state.tab === "pay-settings" ? paySettingsView() : state.tab === "alerts" ? alertsView() : state.tab === "reports" ? reportsView() : adsView(state.tab);
   }
 
-  // ---- Site settings (admins): who may sell on the site ----
+  // ---- Site settings: who may sell (admins), home banners, notices, delivery prices ----
+  var siteNewBanners = [];
   function siteView(){
     var s = state.site; if (!s) return '<p class="empty">Loading…</p>';
     var privateCount = state.members.filter(function(m){ return m.type === "private"; }).length;
     var privateLive = state.ads.filter(function(a){ return a.status === "approved" && a.sellerType === "private"; }).length;
-    return '<form id="site-form" class="panel" style="max-width:720px"><h2 style="font-size:20px">Site settings</h2>' +
-      '<label style="display:flex;gap:10px;align-items:flex-start;font-weight:500;padding:14px;border:1px solid var(--line);border-radius:12px"><input type="checkbox" name="privateSellersEnabled" style="width:auto;margin-top:4px"' + (s.privateSellersEnabled ? " checked" : "") + '>' +
-      '<span><b>Allow private (individual) sellers</b><br><span class="hint">Off = only verified car dealers can sign up to sell and post cars. Buyers can always sign up. Private sellers who already have cars on the site can still edit, mark sold or delete them, but can' + "'" + 't post new ones. Turn on to open private selling again.</span></span></label>' +
-      '<p class="hint">Now: ' + privateCount + ' private seller account(s), ' + privateLive + ' live car(s) from private sellers. Remove cars from the Live tab if you want them off the site.' +
-      (s.updatedAt ? " Last changed " + new Date(s.updatedAt).toLocaleString() + " by " + esc(s.updatedBy) + "." : "") + '</p>' +
-      '<button class="btn btn-main">Save site settings</button></form>';
+    var row = function(cls, cols, html){ return '<div class="' + cls + '" style="display:grid;grid-template-columns:' + cols + ';gap:8px;margin-bottom:6px;align-items:center">' + html + '</div>'; };
+    var noticeRow = function(n){ return row("notice-row", "140px 1fr 1.6fr auto", '<input type="date" data-n="date" value="' + esc(n.date || new Date().toISOString().slice(0, 10)) + '"><input data-n="title" maxlength="120" placeholder="Title, e.g. New Prados arriving" value="' + esc(n.title || "") + '"><input data-n="text" maxlength="1000" placeholder="More details (optional)" value="' + esc(n.text || "") + '"><input type="hidden" data-n="id" value="' + esc(n.id || "") + '"><button type="button" class="btn btn-ghost btn-sm" data-act="row-del">✕</button>'); };
+    var delRow = function(d){ return row("del-row", "1.2fr 1fr 1fr auto", '<input data-d="city" maxlength="40" placeholder="City" value="' + esc(d.city || "") + '"><input data-d="price" type="number" min="0" step="10000" placeholder="Price TZS" value="' + esc(d.price == null ? "" : d.price) + '"><input data-d="days" maxlength="40" placeholder="e.g. 2–3 days" value="' + esc(d.days || "") + '"><button type="button" class="btn btn-ghost btn-sm" data-act="row-del">✕</button>'); };
+    siteView.noticeRow = noticeRow; siteView.delRow = delRow;
+    return '<form id="site-form" class="panel" style="max-width:860px"><h2 style="font-size:20px">Site settings</h2>' +
+      (s.updatedAt ? '<p class="hint">Last changed ' + new Date(s.updatedAt).toLocaleString() + ' by ' + esc(s.updatedBy) + '.</p>' : "") +
+      '<h3 style="margin:18px 0 6px">Who can sell</h3>' +
+      '<label style="display:flex;gap:10px;align-items:flex-start;font-weight:500;padding:14px;border:1px solid var(--line);border-radius:12px"><input type="checkbox" name="privateSellersEnabled" style="width:auto;margin-top:4px"' + (s.privateSellersEnabled ? " checked" : "") + (isAdmin() ? "" : " disabled") + '>' +
+      '<span><b>Allow private (individual) sellers</b>' + (isAdmin() ? "" : ' <span class="pill off">ADMINS ONLY</span>') + '<br><span class="hint">Off = only verified car dealers can sign up to sell and post cars. Buyers can always sign up. Private sellers already on the site keep their cars but cannot post new ones.</span></span></label>' +
+      '<p class="hint">Now: ' + privateCount + ' private seller account(s), ' + privateLive + ' live car(s) from private sellers.</p>' +
+      '<h3 style="margin:22px 0 6px">Home page banner photos</h3><p class="hint" style="margin:0 0 8px">Up to 5 wide photos (showroom, yard, best cars). They rotate at the top of the home page. Without photos the banner shows a drawn car.</p>' +
+      (s.banners.length ? '<div class="thumbs">' + s.banners.map(function(u){ return '<label style="display:inline-flex;flex-direction:column;gap:4px;font-weight:500;font-size:12px"><img src="' + esc(u) + '" alt="" style="width:160px;height:90px"><span><input type="checkbox" data-keep-banner="' + esc(u) + '" checked style="width:auto"> keep</span></label>'; }).join("") + '</div>' : "") +
+      '<input type="file" id="banner-files" accept="image/*" multiple style="margin-top:8px"><div class="thumbs" id="banner-new"></div>' +
+      '<h3 style="margin:22px 0 6px">Notices on the home page</h3><p class="hint" style="margin:0 0 8px">Short announcements (e.g. new stock, holiday hours, price changes). The 3 newest show on the home page.</p>' +
+      '<div id="notice-rows">' + s.notices.map(noticeRow).join("") + '</div><button type="button" class="btn btn-ghost btn-sm" data-act="add-notice">+ Add notice</button>' +
+      '<h3 style="margin:22px 0 6px">Delivery prices from Dar es Salaam</h3><p class="hint" style="margin:0 0 8px">Shown on every car page as "Delivery to your city". 0 = free. ⚠️ The starting prices are examples: please set your real prices.</p>' +
+      '<div id="del-rows">' + s.delivery.map(delRow).join("") + '</div><button type="button" class="btn btn-ghost btn-sm" data-act="add-del">+ Add city</button>' +
+      '<label style="margin-top:12px">Note under the delivery price</label><input name="deliveryNote" maxlength="300" value="' + esc(s.deliveryNote || "") + '">' +
+      '<button class="btn btn-main" style="margin-top:18px">Save site settings</button></form>';
   }
+  $("view").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-act]"); if (!b || !b.closest("#site-form")) return;
+    if (b.dataset.act === "row-del") b.parentNode.remove();
+    if (b.dataset.act === "add-notice") document.getElementById("notice-rows").insertAdjacentHTML("beforeend", siteView.noticeRow({}));
+    if (b.dataset.act === "add-del") document.getElementById("del-rows").insertAdjacentHTML("beforeend", siteView.delRow({}));
+  });
+  $("view").addEventListener("change", function(e){
+    if (e.target.id !== "banner-files") return;
+    Promise.all(Array.from(e.target.files).slice(0, 5).map(function(f){ return TCD.shrinkImage(f, 1600, 0.78); })).then(function(list){
+      siteNewBanners = list; document.getElementById("banner-new").innerHTML = list.map(function(p){ return '<img src="' + p + '" alt="" style="width:160px;height:90px">'; }).join("");
+    });
+  });
   $("view").addEventListener("submit", function(e){
     if (e.target.id !== "site-form") return;
     e.preventDefault();
-    api("saveSite", { site: { privateSellersEnabled: e.target.elements.privateSellersEnabled.checked } })
-      .then(function(j){ state.site = j.site; render(); flash(j.site.privateSellersEnabled ? "Private sellers are open" : "Private sellers are closed: only dealers can sell"); })
-      .catch(function(ex){ flash(ex.message, "err"); });
+    var fm = e.target, body = {
+      notices: Array.from(fm.querySelectorAll(".notice-row")).map(function(r){ var o = {}; r.querySelectorAll("[data-n]").forEach(function(i){ o[i.dataset.n] = i.value; }); return o; }),
+      delivery: Array.from(fm.querySelectorAll(".del-row")).map(function(r){ var o = {}; r.querySelectorAll("[data-d]").forEach(function(i){ o[i.dataset.d] = i.value; }); return o; }),
+      deliveryNote: fm.elements.deliveryNote.value,
+      keepBanners: Array.from(fm.querySelectorAll("[data-keep-banner]")).filter(function(c){ return c.checked; }).map(function(c){ return c.dataset.keepBanner; }),
+      newBanners: siteNewBanners,
+    };
+    if (isAdmin()) body.privateSellersEnabled = fm.elements.privateSellersEnabled.checked;
+    var btn = fm.querySelector("button.btn-main"); btn.disabled = true; btn.textContent = "Saving…";
+    api("saveSite", { site: body }).then(function(j){ state.site = j.site; siteNewBanners = []; render(); flash("Site settings saved"); })
+      .catch(function(ex){ flash(ex.message, "err"); btn.disabled = false; btn.textContent = "Save site settings"; });
   });
 
   // ---- Buy through us: our team manages buying a car for a customer ----
@@ -435,11 +470,12 @@
       '<div><label>Body type (sets shipping size)</label><select name="body">' + opts(BODY_OPTS, c.body || "Sedan") + '</select></div>' +
       inp("color", "Colour", c.color) + inp("chassis", "Chassis code", c.chassis, ' placeholder="ACU30"') +
       inp("auctionGrade", "Auction grade", c.auctionGrade, ' placeholder="4.5"') + inp("refNo", "Stock / lot number", c.refNo) +
-      '<div><label>Sale type</label><select name="saleType">' + opts([["stock", "Stock (fixed price)"], ["auction", "Auction"]], c.saleType) + '</select></div>' +
+      '<div><label>Sale type</label><select name="saleType">' + opts([["stock", "Stock (fixed price)"], ["auction", "Auction"], ["offer", "Make an offer (target price)"]], c.saleType) + '</select></div>' +
+      '<div><label>Condition</label><select name="condition">' + opts(["Used", "Accident damaged", "Not running", "Flood damaged"], c.condition || "Used") + '</select></div>' +
       '<div><label>Auction closes (your local time)</label><input name="auctionEnds" type="datetime-local" value="' + local + '"></div>' +
       inp("price", "Price in Japan (FOB) *", c.price, ' type="number" required') +
       '<div><label>Currency</label><select name="currency">' + opts([["JPY", "Japanese yen ¥"], ["USD", "US dollars $"]], c.currency) + '</select></div>' +
-      '<div><label>Status</label><select name="status">' + opts([["available", "Available"], ["reserved", "Reserved"], ["sold", "Sold"], ["hidden", "Hidden (not shown)"]], c.status || "available") + '</select></div>' +
+      '<div><label>Status</label><select name="status">' + opts([["available", "Available"], ["coming", "Coming soon"], ["reserved", "Reserved"], ["sold", "Sold"], ["hidden", "Hidden (not shown)"]], c.status || "available") + '</select></div>' +
       inp("source", "Where it's from (staff only)", c.source, ' placeholder="Sococara SAM, USS Tokyo…"') +
       '<div class="full"><label>Description (shown to buyers)</label><textarea name="description">' + esc(c.description) + '</textarea></div>' +
       '<div class="full"><label>Internal note (staff only)</label><textarea name="internalNote" style="min-height:60px">' + esc(c.internalNote) + '</textarea></div>' +
@@ -464,7 +500,7 @@
           (c.source ? '<div class="meta">Source: ' + esc(c.source) + '</div>' : "") +
           '<div class="meta">Added by ' + esc(c.createdBy || "?") + ' · last change by ' + esc(c.updatedBy || "?") + '</div></div>' +
           '<div class="controls"><div class="btns"><button class="btn btn-ghost btn-sm" data-act="edit-jcar">Edit</button><a class="btn btn-ghost btn-sm" target="_blank" href="/japan-car?id=' + c.id + '">View</a></div>' +
-          '<select data-act="jstatus">' + opts([["available", "Available"], ["reserved", "Reserved"], ["sold", "Sold"], ["hidden", "Hidden"]], c.status) + '</select>' +
+          '<select data-act="jstatus">' + opts([["available", "Available"], ["coming", "Coming soon"], ["reserved", "Reserved"], ["sold", "Sold"], ["hidden", "Hidden"]], c.status) + '</select>' +
           (canVerify() ? '<button class="btn btn-danger btn-sm" data-act="delete-jcar">Delete</button>' : "") + '</div></div>';
       }).join("") : '<p class="empty">No cars from Japan yet. Add the cars you can source, with the price in Japan, and the site works out the cost in Dar es Salaam.</p>');
   }
@@ -560,7 +596,7 @@
     if (e.target.id === "jcar-form") {
       e.preventDefault();
       var f = e.target.elements, data = { id: state.editingJcar === "new" ? "" : state.editingJcar };
-      ["make", "model", "grade", "year", "km", "cc", "fuel", "gearbox", "drive", "body", "color", "chassis", "auctionGrade", "refNo", "saleType", "price", "currency", "status", "source", "description", "internalNote"].forEach(function(k){ data[k] = f[k].value; });
+      ["make", "model", "grade", "year", "km", "cc", "fuel", "gearbox", "drive", "body", "color", "chassis", "auctionGrade", "refNo", "saleType", "condition", "price", "currency", "status", "source", "description", "internalNote"].forEach(function(k){ data[k] = f[k].value; });
       data.auctionEnds = f.auctionEnds.value ? new Date(f.auctionEnds.value).toISOString() : "";
       data.keepPhotos = Array.from(e.target.querySelectorAll("[data-keep]")).filter(function(c){ return c.checked; }).map(function(c){ return c.dataset.keep; });
       data.newPhotos = jNewPhotos;

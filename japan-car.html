@@ -6,7 +6,7 @@
 <title>Car from Japan · Tanzania Car Dealers</title>
 <link rel="icon" href="/assets/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
@@ -22,7 +22,7 @@
   var esc = TCD.esc, root = document.getElementById("root");
   var id = new URLSearchParams(location.search).get("id") || "";
 
-  function show(c, s){
+  function show(c, s, delivery, note){
     var title = c.year + " " + c.make + " " + c.model + (c.grade ? " " + c.grade : "");
     document.title = title + " from Japan · Tanzania Car Dealers";
     var est = TCDJapan.landed(c, s), photos = c.photos || [];
@@ -30,7 +30,7 @@
     var msg = "Hello, I want to order this car from Japan: " + title + " (ref " + (c.refNo || c.id) + "), estimated " + TCD.money(est.total) + " in Dar es Salaam. Please confirm the final price.";
     var specs = [["Make", c.make], ["Model", c.model], ["Grade / trim", c.grade], ["Year", c.year], ["Mileage", TCD.fmt.format(c.km) + " km"], ["Engine", c.cc + " cc"],
       ["Fuel", c.fuel], ["Gearbox", c.gearbox], ["Drive", c.drive], ["Body type", c.body], ["Colour", c.color], ["Chassis code", c.chassis],
-      ["Auction grade", c.auctionGrade], ["Reference", c.refNo || c.id]].filter(function(r){ return r[1]; });
+      ["Auction grade", c.auctionGrade], ["Condition", c.condition && c.condition !== "Used" ? c.condition : ""], ["Reference", c.refNo || c.id]].filter(function(r){ return r[1]; });
     var auction = c.saleType === "auction" && c.auctionEnds;
     root.innerHTML =
       '<div class="crumbs"><a href="/">Home</a> › <a href="/japan">From Japan</a> › ' + esc(title) + '</div>' +
@@ -43,14 +43,15 @@
           specs.map(function(r){ return '<tr><td>' + r[0] + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join("") + '</table>' +
           (c.description ? '<p style="white-space:pre-line;margin:16px 0 0">' + esc(c.description) + '</p>' : "") + '</div>' +
       '</div><aside class="side"><div class="panel">' +
-        '<span class="verified">🇯🇵 In Japan · ' + (auction ? "Auction" : "Stock") + '</span>' + (c.status !== "available" ? ' <span class="verified" style="border-color:var(--danger);color:var(--danger);background:transparent">' + c.status.toUpperCase() + '</span>' : "") +
+        '<span class="verified">🇯🇵 In Japan · ' + (auction ? "Auction" : c.saleType === "offer" ? "Make an offer" : "Stock") + '</span>' + (c.status === "coming" ? ' <span class="verified" style="border-color:var(--blue);color:var(--blue);background:transparent">COMING SOON</span>' : "") + (c.condition && c.condition !== "Used" ? ' <span class="verified" style="border-color:var(--danger);color:var(--danger);background:transparent">' + TCD.esc(c.condition.toUpperCase()) + '</span>' : "") + (c.status !== "available" ? ' <span class="verified" style="border-color:var(--danger);color:var(--danger);background:transparent">' + c.status.toUpperCase() + '</span>' : "") +
         '<h1 style="font-size:24px;margin:10px 0 4px">' + esc(title) + '</h1>' +
-        '<div class="hint" style="margin:0">' + (auction ? "Current price in Japan" : "Price in Japan") + ': <b>' + inJapan + '</b></div>' +
+        '<div class="hint" style="margin:0">' + (auction ? "Current price in Japan" : c.saleType === "offer" ? "Target price in Japan" : "Price in Japan") + ': <b>' + inJapan + '</b></div>' +
         '<div class="landed" style="margin:12px 0">Estimated total in Dar es Salaam<br><b style="font-size:26px">' + TCD.money(est.total) + (est.missing ? "+" : "") + '</b></div>' +
         (auction ? '<p class="seller">⏱ Auction closes ' + new Date(c.auctionEnds).toLocaleString() + '. The final price can go up.</p>' : "") +
         (c.status === "sold" ? '<p class="notice err">This car is sold. <a href="/japan#request">Ask us to find a similar one.</a></p>'
-          : '<a class="btn btn-wa" style="width:100%" target="_blank" rel="noopener" href="' + esc(TCD.waLink(window.SITE.whatsapp, msg)) + '">' + TCD.WA_ICON + (auction ? "Ask us to bid for you" : "Order this car on WhatsApp") + '</a>') +
-      '</div><div class="panel"><b>How importing works</b><ol class="tips"><li>You confirm the car with us on WhatsApp.</li><li>We buy it in Japan (or bid at the auction) after your deposit.</li><li>It ships to Dar es Salaam, usually in 4 to 6 weeks.</li><li>We clear it with TRA and register it, then you collect it.</li></ol></div></aside></div>';
+          : '<a class="btn btn-wa" style="width:100%" target="_blank" rel="noopener" href="' + esc(TCD.waLink(window.SITE.whatsapp, msg)) + '">' + TCD.WA_ICON + (auction ? "Ask us to bid for you" : c.saleType === "offer" ? "Make an offer on WhatsApp" : c.status === "coming" ? "Reserve this car on WhatsApp" : "Order this car on WhatsApp") + '</a>') +
+      '</div>' + TCD.deliveryBox(delivery, note, "Dar es Salaam (after clearing)") + '<div class="panel"><b>How importing works</b><ol class="tips"><li>You confirm the car with us on WhatsApp.</li><li>We buy it in Japan (or bid at the auction) after your deposit.</li><li>It ships to Dar es Salaam, usually in 4 to 6 weeks.</li><li>We clear it with TRA and register it, then you collect it.</li></ol></div></aside></div>';
+    TCD.bindDelivery(root, delivery);
     root.querySelectorAll(".thumbs img").forEach(function(img){
       img.addEventListener("click", function(){
         document.getElementById("main").innerHTML = '<img src="' + esc(photos[img.dataset.i]) + '" alt="' + esc(title) + '">';
@@ -60,7 +61,7 @@
   }
 
   fetch("/api/japan?id=" + encodeURIComponent(id)).then(function(r){ if (!r.ok) throw 0; return r.json(); })
-    .then(function(j){ show(j.car, j.settings); })
+    .then(function(j){ show(j.car, j.settings, j.delivery, j.deliveryNote); })
     .catch(function(){ root.innerHTML = '<h2>Car not found</h2><p class="sub">It may have been sold or removed.</p><a class="btn btn-ghost" href="/japan">See cars from Japan</a>'; });
 })();
 </script>

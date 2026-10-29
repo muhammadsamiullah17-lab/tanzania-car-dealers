@@ -7,7 +7,7 @@
 <meta name="description" content="Japanese used cars with an estimated total cost landed in Dar es Salaam, including shipping and TRA taxes.">
 <link rel="icon" href="/assets/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
@@ -27,7 +27,8 @@
       <input id="q" type="search" placeholder="Search make or model, e.g. Harrier">
       <select id="f-make"><option value="">All makes</option></select>
       <select id="f-body"><option value="">All body types</option></select>
-      <select id="f-status"><option value="">Available and reserved</option><option value="available">Available only</option><option value="all">Include sold</option></select>
+      <select id="f-status"><option value="">All not sold</option><option value="available">Available only</option><option value="coming">Coming soon</option><option value="all">Include sold</option></select>
+      <select id="f-cond"><option value="">Any condition</option><option>Used</option><option>Accident damaged</option><option>Not running</option><option>Flood damaged</option></select>
       <select id="f-budget">
         <option value="">Any total budget</option>
         <option value="30000000">Up to 30M TZS</option>
@@ -89,7 +90,7 @@
   TCD.chrome("japan");
   var esc = TCD.esc, grid = document.getElementById("grid"), empty = document.getElementById("empty");
   var q = document.getElementById("q"), fMake = document.getElementById("f-make"), fBody = document.getElementById("f-body"),
-      fStatus = document.getElementById("f-status"), fBudget = document.getElementById("f-budget");
+      fStatus = document.getElementById("f-status"), fBudget = document.getElementById("f-budget"), fCond = document.getElementById("f-cond");
   var data = { cars: [], settings: null };
 
   function timeLeft(iso){
@@ -103,10 +104,10 @@
     var href = "/japan-car?id=" + c.id;
     var pic = c.photos && c.photos.length ? '<img src="' + esc(c.photos[0]) + '" alt="' + esc(title) + '" loading="lazy">' : TCD.carSvg("#8a96a3");
     return '<article class="car"><a class="pic" href="' + href + '"><span class="tag">🇯🇵 ' + esc(c.body) + '</span>' +
-      (c.status !== "available" ? '<span class="status-pill ' + c.status + '">' + c.status.toUpperCase() + '</span>' : "") + pic + '</a>' +
+      (c.status !== "available" ? '<span class="status-pill ' + c.status + '">' + (c.status === "coming" ? "COMING SOON" : c.status.toUpperCase()) + '</span>' : "") + pic + '</a>' +
       '<div class="body"><h3><a href="' + href + '">' + esc(title) + '</a></h3>' +
       '<div class="landed">Estimated in Dar es Salaam<br><b>' + TCD.money(est.total) + (est.missing ? "+" : "") + '</b></div>' +
-      '<div class="hint" style="margin:0">In Japan: ' + (c.currency === "USD" ? "$" + TCD.fmt.format(c.price) : "¥" + TCD.fmt.format(c.price)) + ' (' + (c.saleType === "auction" ? "auction" : "stock price") + ')</div>' +
+      '<div class="hint" style="margin:0">In Japan: ' + (c.currency === "USD" ? "$" + TCD.fmt.format(c.price) : "¥" + TCD.fmt.format(c.price)) + ' (' + (c.saleType === "auction" ? "auction" : c.saleType === "offer" ? "make an offer" : "stock price") + ')' + (c.condition && c.condition !== "Used" ? ' · <b style="color:var(--danger)">' + esc(c.condition) + '</b>' : "") + '</div>' +
       '<div class="specs"><span>' + TCD.fmt.format(c.km) + ' km</span><span>' + c.cc + 'cc</span><span>' + esc(c.fuel) + '</span><span>' + esc(c.gearbox) + '</span>' + (c.auctionGrade ? '<span>Grade ' + esc(c.auctionGrade) + '</span>' : "") + '</div>' +
       (c.saleType === "auction" && c.auctionEnds && c.status === "available" ? '<div class="seller">⏱ ' + timeLeft(c.auctionEnds) + '</div>' : "") +
       '<a class="btn btn-ghost" href="' + href + '">See full cost</a></div></article>';
@@ -115,6 +116,8 @@
     var term = q.value.trim().toLowerCase(), budget = Number(fBudget.value) || 0;
     var list = data.cars.filter(function(c){
       if (fStatus.value === "available" && c.status !== "available") return false;
+      if (fStatus.value === "coming" && c.status !== "coming") return false;
+      if (fCond.value && (c.condition || "Used") !== fCond.value) return false;
       if (fStatus.value === "" && c.status === "sold") return false;
       if (term && (c.make + " " + c.model + " " + (c.grade || "")).toLowerCase().indexOf(term) === -1) return false;
       if (fMake.value && c.make !== fMake.value) return false;
@@ -144,7 +147,7 @@
     data = j;
     fill(fMake, j.cars.map(function(c){ return c.make; }));
     fill(fBody, j.cars.map(function(c){ return c.body; }));
-    [q, fMake, fBody, fStatus, fBudget].forEach(function(el){ el.addEventListener("input", render); });
+    [q, fMake, fBody, fStatus, fBudget, fCond].forEach(function(el){ el.addEventListener("input", render); });
     render(); calc();
     document.getElementById("c-note").textContent = TCDJapan.ratesNote(j.settings);
   }).catch(function(){ grid.innerHTML = '<p class="empty">Could not load cars right now. Please try again.</p>'; });

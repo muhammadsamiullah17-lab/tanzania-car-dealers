@@ -5,6 +5,7 @@ import { newId, readBody, send } from "../lib/store.js";
 import { readToken } from "../lib/auth.js";
 import { members } from "../lib/members.js";
 import { jcars, jrequests, getSettings, publicJcar } from "../lib/japan.js";
+import { getSite, publicSite } from "../lib/site.js";
 
 function text(v, max) {
   return String(v ?? "").trim().slice(0, max);
@@ -12,18 +13,19 @@ function text(v, max) {
 
 async function get(req, res) {
   const id = req.query.id;
-  const settings = await getSettings();
+  const [settings, site] = await Promise.all([getSettings(), getSite()]);
+  const { delivery, deliveryNote } = publicSite(site);
   res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
   if (id) {
     const c = await jcars.get(id);
     if (!c || c.status === "hidden") return send(res, 404, { error: "Not found" });
-    return send(res, 200, { car: publicJcar(c), settings });
+    return send(res, 200, { car: publicJcar(c), settings, delivery, deliveryNote });
   }
-  const order = { available: 0, reserved: 1, sold: 2 };
+  const order = { available: 0, coming: 1, reserved: 2, sold: 3 };
   const cars = (await jcars.all()).filter((c) => c.status !== "hidden")
     .sort((a, b) => (order[a.status] - order[b.status]) || (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map(publicJcar);
-  send(res, 200, { cars, settings });
+  send(res, 200, { cars, settings, delivery, deliveryNote });
 }
 
 async function post(req, res) {

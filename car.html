@@ -6,7 +6,7 @@
 <title>Car details · Tanzania Car Dealers</title>
 <link rel="icon" href="/assets/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
@@ -123,6 +123,7 @@
     });
   }
 
+  var site = null;
   function show(car, dealer, market){
     var dealersById = {}; if (dealer) dealersById[dealer.id] = dealer;
     var s = TCD.sellerLabel(car, dealersById);
@@ -152,7 +153,7 @@
           '<p class="seller" style="margin:12px 0 16px">' + TCD.t("Sold by") + ' ' + (s.href ? '<a href="' + s.href + '">' + esc(s.name) + '</a>' : esc(s.name)) + (s.verified ? ' <span class="verified">✓ ' + TCD.t("Verified") + '</span>' : "") + '</p>' +
           (sold ? "" : '<div class="way-label">' + (TCD.lang === "sw" ? "Njia 1: Wasiliana na muuzaji moja kwa moja" : "Option 1: Contact the seller directly") + '</div><a class="btn btn-wa" style="width:100%" target="_blank" rel="noopener" href="' + esc(TCD.waLink(s.phone, TCD.enquiry(car))) + '">' + TCD.WA_ICON + TCD.t("Chat with seller on WhatsApp") + '</a>' +
             '<div class="btns" style="display:flex;gap:8px;margin-top:8px"><a class="btn btn-ghost" style="flex:1" href="tel:+' + esc(s.phone) + '">📞 ' + TCD.t("Call") + '</a><button class="btn btn-ghost" style="flex:1" id="share">↗ ' + TCD.t("Share") + '</button>' + TCD.saveButton(car.id, true).replace("♥", "♥ " + TCD.t("Save")) + '</div>') +
-        '</div>' + (sold ? "" : throughUs(car)) +
+        '</div>' + (sold ? "" : throughUs(car) + TCD.deliveryBox((site || {}).delivery, (site || {}).deliveryNote, car.city)) +
         '<div class="panel"><b>' + TCD.t("Buy safely") + '</b><ul class="tips">' + ["See the car in person before paying.", "Check the registration card matches the seller.", "Never send a deposit to someone you have not met.", "Ask us for an inspection if you are unsure."].map(function(x){ return "<li>" + TCD.t(x) + "</li>"; }).join("") + '</ul>' +
           (car.house ? "" : '<button class="btn btn-ghost btn-sm" style="margin-top:12px" id="report-btn">⚑ ' + TCD.t("Report this ad") + '</button><div id="report-box" hidden style="margin-top:12px"></div>') + '</div>' +
       '</aside></div>' + inspectionPanel(car) + similar(car, market);
@@ -167,10 +168,12 @@
     });
     var sb = document.getElementById("share"); if (sb) sb.addEventListener("click", function(){ share(car, t); });
     var rb = document.getElementById("report-btn"); if (rb) rb.addEventListener("click", function(){ reportForm(car); });
+    TCD.bindDelivery(root, (site || {}).delivery);
     var tb = document.getElementById("through-btn"); if (tb) tb.addEventListener("click", function(){ throughForm(car); });
   }
 
   TCD.loadMarket().then(function(market){
+    site = market.site;
     if (/^h\d+$/.test(id)) {
       var car = market.cars.filter(function(c){ return c.id === id; })[0];
       return car ? show(car, null, market) : notFound();
