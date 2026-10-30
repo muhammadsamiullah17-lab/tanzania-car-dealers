@@ -47,6 +47,8 @@
   // ---- Swahili / English. Strings are keyed by their English text; pages mark static text with
   // data-t (text) and data-tp (placeholder). Anything missing from SW stays in English. ----
   var SW = {
+    "Notice board": "Ubao wa matangazo", "Notice": "Tangazo", "Important": "Muhimu", "NOTICE BOARD": "UBAO WA MATANGAZO", "All notices →": "Matangazo yote →",
+    "Announcements from Tanzania Car Dealers for everyone: buyers, sellers, dealers and our team.": "Matangazo kutoka Tanzania Car Dealers kwa kila mtu: wanunuzi, wauzaji, wafanyabiashara na timu yetu.",
     "Cars": "Magari", "From Japan": "Kutoka Japan", "Dealers": "Wauzaji", "Sell your car": "Uza gari lako", "Saved": "Yaliyohifadhiwa",
     "Log in": "Ingia", "My account": "Akaunti yangu", "Admin panel": "Paneli ya admin", "Private seller": "Muuzaji binafsi",
     "Verified": "Amethibitishwa", "FEATURED": "MAALUM", "Ask on WhatsApp": "Uliza WhatsApp", "TCD Inspected": "Imekaguliwa na TCD",
@@ -237,6 +239,36 @@
       '<span class="label">' + label + '</span></a>';
   }
 
+  // Notice board bar under the header on every page (visitors, customers and staff alike).
+  // Closing it hides only the notice shown; a newer notice brings it back.
+  var notices = null;
+  function loadNotices() {
+    if (!notices) notices = fetch("/api/public").then(function (r) { return r.ok ? r.json() : { notices: [] }; })
+      .then(function (j) { return j.notices || []; }).catch(function () { return []; });
+    return notices;
+  }
+  function noticeBar() {
+    if (location.pathname.replace(/\.html$/, "") === "/notices") return;
+    var head = document.querySelector("header.top"); if (!head) return;
+    loadNotices().then(function (list) {
+      var n = list[0]; if (!n) return;
+      var key = n.id + (n.date || "") + n.title, closed = "";
+      try { closed = localStorage.getItem("tcd_notice_closed") || ""; } catch (e) {}
+      if (closed === key) return;
+      var bar = document.createElement("div");
+      bar.className = "notice-bar" + (n.important ? " important" : "");
+      bar.innerHTML = '<div class="wrap"><span class="nb-tag">📢 ' + t(n.important ? "Important" : "Notice") + '</span>' +
+        '<a class="nb-text" href="/notices#n-' + esc(n.id) + '"><b>' + esc(n.title) + '</b>' + (n.text ? '<span> — ' + esc(n.text.slice(0, 140)) + (n.text.length > 140 ? "…" : "") + '</span>' : "") + '</a>' +
+        '<a class="nb-all" href="/notices">' + t("Notice board") + (list.length > 1 ? " (" + list.length + ")" : "") + ' →</a>' +
+        '<button type="button" class="nb-close" aria-label="Close">✕</button></div>';
+      head.insertAdjacentElement("afterend", bar);
+      bar.querySelector(".nb-close").addEventListener("click", function () {
+        try { localStorage.setItem("tcd_notice_closed", key); } catch (e) {}
+        bar.remove();
+      });
+    });
+  }
+
   function chrome(active) {
     var header = document.createElement("div");
     header.innerHTML =
@@ -257,6 +289,8 @@
       location.reload();
     });
 
+    noticeBar();
+
     var footer = document.createElement("footer");
     footer.className = "site-foot";
     var col = function (title, links) {
@@ -265,7 +299,7 @@
     footer.innerHTML = '<div class="wrap"><div class="cols">' +
       '<div><a class="brand" href="/" style="color:#fff;display:flex;padding:0;margin-bottom:12px"><span class="logo"><svg width="22" height="22" viewBox="0 0 64 64"><path d="M8 38l6-12c1-2 3-3 5-3h26c2 0 4 1 5 3l6 12v8H8z" fill="#fcd116"/><circle cx="20" cy="46" r="6" fill="#111"/><circle cx="44" cy="46" r="6" fill="#111"/></svg></span>' + esc(S.name) + '</a>' +
         '<p class="about">' + (lang === "sw" ? "Soko la magari linaloaminika Tanzania. Kila muuzaji anathibitishwa na timu yetu." : "Tanzania's trusted car marketplace. Every seller is verified by our team, and we can manage the whole purchase for you.") + '</p></div>' +
-      col("Buy", [["Cars for sale", "/#stock"], ["From Japan", "/japan"], ["Saved", "/saved"], ["Dealers", "/dealers"]]) +
+      col("Buy", [["Cars for sale", "/#stock"], ["From Japan", "/japan"], ["Saved", "/saved"], ["Dealers", "/dealers"], ["Notice board", "/notices"]]) +
       col("Sell", [["Sell your car", "/sell"], ["Register as a dealer", "/signup?type=dealer"], ["Log in", "/login"]]) +
       col("Contact", [["WhatsApp " + S.phoneDisplay, waLink(S.whatsapp, "Hello Tanzania Car Dealers!"), true], [S.email, "mailto:" + S.email], [S.location, "/#why"]]) +
       '</div><div class="bottom"><span>© ' + new Date().getFullYear() + ' ' + esc(S.name) + '. ' + t("All prices in Tanzanian Shillings.") + '</span><span>' + (lang === "sw" ? "Imetengenezwa Tanzania 🇹🇿" : "Made for Tanzania 🇹🇿") + '</span></div></div>';

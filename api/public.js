@@ -1,8 +1,10 @@
+// GET /api/public -> the notice board everyone sees (customers, staff, visitors).
 // POST /api/public { action: "alert" | "report", ... } -> things any visitor can send without an account.
 //   alert:  "notify me" about new cars matching a search; staff send the matches on WhatsApp.
 //   report: a problem with an ad (fake, sold, wrong price…), reviewed by staff.
 import { ads, newId, digits, readBody, send } from "../lib/store.js";
 import { alerts, reports, REPORT_REASONS, ALERT_FILTER_KEYS as FILTER_KEYS } from "../lib/buyers.js";
+import { getSite, noticeBoard } from "../lib/site.js";
 
 function text(v, max) {
   return String(v ?? "").trim().slice(0, max);
@@ -32,6 +34,10 @@ const actions = {
 };
 
 export default async function handler(req, res) {
+  if (req.method === "GET") {
+    res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    return send(res, 200, { notices: noticeBoard(await getSite()).slice(0, 30) });
+  }
   if (req.method !== "POST") return send(res, 405, { error: "Method not allowed" });
   let b;
   try {

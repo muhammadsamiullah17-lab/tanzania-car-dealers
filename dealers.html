@@ -41,7 +41,7 @@
     m.cars.forEach(function(c){ if (c.dealerId) counts[c.dealerId] = (counts[c.dealerId] || 0) + 1; });
     var house = { id: "", name: window.SITE.name, city: window.SITE.location.split(",")[0], verified: true, house: true, about: "Our own showroom stock." };
     var paid = m.dealers.filter(function(d){ return d.tier; }), rest = m.dealers.filter(function(d){ return !d.tier; });
-    var all = paid.concat([house], rest);
+    var all = paid.concat(TCD.houseCars().length ? [house] : [], rest); // our own card only while cars.js has stock
     counts[""] = TCD.houseCars().length;
     Array.from(new Set(all.map(function(d){ return d.city; }))).filter(Boolean).sort().forEach(function(c){ fCity.add(new Option(c, c)); });
 

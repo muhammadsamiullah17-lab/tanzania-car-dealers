@@ -31,6 +31,7 @@ Car marketplace for Tanzania. Every seller (private person or car dealer) create
 
 - Shared look in `assets/style.css` (design layer at the end): Plus Jakarta Sans headings, green/gold/navy palette, light and dark mode.
 - Home page: photo banner (Admin › Site settings › banner photos; a drawn car when empty), quick search, cars-in-stock counter, browse by body type and make with counts, new arrivals, notices, how it works, Japan import band, dealer sign-up.
+- **Notice board** (Admin › Site settings › Notice board, managers and admins): announcements for everyone. The top notice shows in a bar under the header on every page (visitors, customers, dealers and staff; closing it hides that notice until a newer one), the first 3 on the home page, and all at `/notices`. **Important** notices go first and show in red.
 - **Delivery across Tanzania**: prices per city from Dar es Salaam (Admin › Site settings) shown on every car and Japan car page. The starting prices are examples.
 - Japan stock can be **Coming soon**, sold as **Make an offer**, and marked with a **condition** (Used, Accident damaged, Not running, Flood damaged).
 

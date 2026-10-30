@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notice board · Tanzania Car Dealers</title>
+<link rel="icon" href="/assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<section>
+  <div class="wrap">
+    <h1 style="font-size:34px;margin:0 0 6px" data-t>Notice board</h1>
+    <p class="sub" data-t>Announcements from Tanzania Car Dealers for everyone: buyers, sellers, dealers and our team.</p>
+    <div class="board" id="board"><p class="empty">Loading…</p></div>
+  </div>
+</section>
+<script src="/config.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  TCD.chrome("");
+  var esc = TCD.esc, sw = TCD.lang === "sw";
+  fetch("/api/public").then(function(r){ return r.json(); }).then(function(j){
+    var list = j.notices || [], box = document.getElementById("board");
+    box.innerHTML = list.length ? list.map(function(n){
+      return '<article id="n-' + esc(n.id) + '"' + (n.important ? ' class="important"' : "") + '><time>' + esc(n.date) + '</time>' + (n.important ? ' <span class="pill imp">' + (sw ? "Muhimu" : "Important") + '</span>' : "") +
+        '<h2>' + esc(n.title) + '</h2>' + (n.text ? '<p>' + esc(n.text) + '</p>' : "") + '</article>';
+    }).join("") : '<p class="empty">' + (sw ? "Hakuna matangazo kwa sasa." : "No notices right now.") + '</p>';
+    if (location.hash) { var el = document.getElementById(location.hash.slice(1)); if (el) el.scrollIntoView(); }
+  }).catch(function(){ document.getElementById("board").innerHTML = '<p class="empty">Could not load notices. Please try again.</p>'; });
+})();
+</script>
+</body>
+</html>

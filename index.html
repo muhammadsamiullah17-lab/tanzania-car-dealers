@@ -39,7 +39,7 @@
   <div class="dots" id="dots"></div>
 </section>
 
-<section class="notices" id="notices" hidden><div class="wrap"><div class="panel"><span class="tag2" data-t>NOTICES</span><ul id="notice-list"></ul></div></div></section>
+<section class="notices" id="notices" hidden><div class="wrap"><div class="panel"><span class="tag2" data-t>NOTICE BOARD</span><ul id="notice-list"></ul><a href="/notices" style="flex:none;font-weight:700;white-space:nowrap;font-size:14px" data-t>All notices →</a></div></div></section>
 
 <section id="browse">
   <div class="wrap">
@@ -303,7 +303,7 @@
     if (notes.length) {
       document.getElementById("notices").hidden = false;
       document.getElementById("notice-list").innerHTML = notes.slice(0, 3).map(function(n){
-        return '<li><time>' + esc(n.date) + '</time>' + (n.text ? '<details><summary>' + esc(n.title) + '</summary><p>' + esc(n.text) + '</p></details>' : '<span>' + esc(n.title) + '</span>') + '</li>'; }).join("");
+        return '<li><time>' + esc(n.date) + '</time>' + (n.important ? '<span class="pill imp">!</span>' : "") + (n.text ? '<details><summary>' + esc(n.title) + '</summary><p>' + esc(n.text) + '</p></details>' : '<span>' + esc(n.title) + '</span>') + '</li>'; }).join("");
     }
     TCD.applyI18n(document.getElementById("quick"));
   }

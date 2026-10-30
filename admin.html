@@ -181,7 +181,7 @@
     var privateCount = state.members.filter(function(m){ return m.type === "private"; }).length;
     var privateLive = state.ads.filter(function(a){ return a.status === "approved" && a.sellerType === "private"; }).length;
     var row = function(cls, cols, html){ return '<div class="' + cls + '" style="display:grid;grid-template-columns:' + cols + ';gap:8px;margin-bottom:6px;align-items:center">' + html + '</div>'; };
-    var noticeRow = function(n){ return row("notice-row", "140px 1fr 1.6fr auto", '<input type="date" data-n="date" value="' + esc(n.date || new Date().toISOString().slice(0, 10)) + '"><input data-n="title" maxlength="120" placeholder="Title, e.g. New Prados arriving" value="' + esc(n.title || "") + '"><input data-n="text" maxlength="1000" placeholder="More details (optional)" value="' + esc(n.text || "") + '"><input type="hidden" data-n="id" value="' + esc(n.id || "") + '"><button type="button" class="btn btn-ghost btn-sm" data-act="row-del">✕</button>'); };
+    var noticeRow = function(n){ return row("notice-row", "140px 1fr 1.6fr auto auto", '<input type="date" data-n="date" value="' + esc(n.date || new Date().toISOString().slice(0, 10)) + '"><input data-n="title" maxlength="120" placeholder="Title, e.g. New Prados arriving" value="' + esc(n.title || "") + '"><input data-n="text" maxlength="1000" placeholder="More details (optional)" value="' + esc(n.text || "") + '"><label style="display:flex;gap:4px;align-items:center;font-weight:500;font-size:13px;margin:0" title="Important notices show first and in red"><input type="checkbox" data-n="important" style="width:auto"' + (n.important ? " checked" : "") + '>Important</label><input type="hidden" data-n="id" value="' + esc(n.id || "") + '"><button type="button" class="btn btn-ghost btn-sm" data-act="row-del">✕</button>'); };
     var delRow = function(d){ return row("del-row", "1.2fr 1fr 1fr auto", '<input data-d="city" maxlength="40" placeholder="City" value="' + esc(d.city || "") + '"><input data-d="price" type="number" min="0" step="10000" placeholder="Price TZS" value="' + esc(d.price == null ? "" : d.price) + '"><input data-d="days" maxlength="40" placeholder="e.g. 2–3 days" value="' + esc(d.days || "") + '"><button type="button" class="btn btn-ghost btn-sm" data-act="row-del">✕</button>'); };
     siteView.noticeRow = noticeRow; siteView.delRow = delRow;
     var jc = s.japanCompany || {};
@@ -194,7 +194,7 @@
       '<h3 style="margin:22px 0 6px">Home page banner photos</h3><p class="hint" style="margin:0 0 8px">Up to 5 wide photos (showroom, yard, best cars). They rotate at the top of the home page. Without photos the banner shows a drawn car.</p>' +
       (s.banners.length ? '<div class="thumbs">' + s.banners.map(function(u){ return '<label style="display:inline-flex;flex-direction:column;gap:4px;font-weight:500;font-size:12px"><img src="' + esc(u) + '" alt="" style="width:160px;height:90px"><span><input type="checkbox" data-keep-banner="' + esc(u) + '" checked style="width:auto"> keep</span></label>'; }).join("") + '</div>' : "") +
       '<input type="file" id="banner-files" accept="image/*" multiple style="margin-top:8px"><div class="thumbs" id="banner-new"></div>' +
-      '<h3 style="margin:22px 0 6px">Notices on the home page</h3><p class="hint" style="margin:0 0 8px">Short announcements (e.g. new stock, holiday hours, price changes). The 3 newest show on the home page.</p>' +
+      '<h3 style="margin:22px 0 6px">📢 Notice board</h3><p class="hint" style="margin:0 0 8px">Announcements everyone sees: visitors, customers, dealers and staff. The top notice shows in a bar under the header on every page, the first 3 on the home page, and all of them on the <a href="/notices" target="_blank">Notice board</a> page. Tick <b>Important</b> to put a notice first and show it in red.</p>' +
       '<div id="notice-rows">' + s.notices.map(noticeRow).join("") + '</div><button type="button" class="btn btn-ghost btn-sm" data-act="add-notice">+ Add notice</button>' +
       '<h3 style="margin:22px 0 6px">Delivery prices from Dar es Salaam</h3><p class="hint" style="margin:0 0 8px">Shown on every car page as "Delivery to your city". 0 = free. ⚠️ The starting prices are examples: please set your real prices.</p>' +
       '<div id="del-rows">' + s.delivery.map(delRow).join("") + '</div><button type="button" class="btn btn-ghost btn-sm" data-act="add-del">+ Add city</button>' +
@@ -223,7 +223,7 @@
     if (e.target.id !== "site-form") return;
     e.preventDefault();
     var fm = e.target, body = {
-      notices: Array.from(fm.querySelectorAll(".notice-row")).map(function(r){ var o = {}; r.querySelectorAll("[data-n]").forEach(function(i){ o[i.dataset.n] = i.value; }); return o; }),
+      notices: Array.from(fm.querySelectorAll(".notice-row")).map(function(r){ var o = {}; r.querySelectorAll("[data-n]").forEach(function(i){ o[i.dataset.n] = i.type === "checkbox" ? i.checked : i.value; }); return o; }),
       delivery: Array.from(fm.querySelectorAll(".del-row")).map(function(r){ var o = {}; r.querySelectorAll("[data-d]").forEach(function(i){ o[i.dataset.d] = i.value; }); return o; }),
       deliveryNote: fm.elements.deliveryNote.value,
       japanCompany: JC_FIELDS.concat([["about"]]).reduce(function(o, f){ o[f[0]] = fm.elements["jc_" + f[0]].value; return o; }, {}),
