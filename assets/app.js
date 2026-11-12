@@ -47,7 +47,7 @@
   // ---- Swahili / English. Strings are keyed by their English text; pages mark static text with
   // data-t (text) and data-tp (placeholder). Anything missing from SW stays in English. ----
   var SW = {
-    "Watch: how to buy a car on Tanzania Car Dealers (1 minute, English and Swahili).": "Tazama: jinsi ya kununua gari kwenye Tanzania Car Dealers (dakika 1, Kiingereza na Kiswahili).",
+    "Watch: how to buy a car on Tanzania Car Dealers (2½ minutes, spoken in English and Swahili).": "Tazama: jinsi ya kununua gari kwenye Tanzania Car Dealers (dakika 2½, kwa sauti ya Kiingereza na Kiswahili).",
     "Notice board": "Ubao wa matangazo", "Notice": "Tangazo", "Important": "Muhimu", "NOTICE BOARD": "UBAO WA MATANGAZO", "All notices →": "Matangazo yote →",
     "Announcements from Tanzania Car Dealers for everyone: buyers, sellers, dealers and our team.": "Matangazo kutoka Tanzania Car Dealers kwa kila mtu: wanunuzi, wauzaji, wafanyabiashara na timu yetu.",
     "Cars": "Magari", "From Japan": "Kutoka Japan", "Dealers": "Wauzaji", "Sell your car": "Uza gari lako", "Saved": "Yaliyohifadhiwa",
