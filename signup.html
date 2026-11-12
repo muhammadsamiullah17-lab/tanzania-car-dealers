@@ -22,6 +22,8 @@
   <div class="wrap" style="max-width:760px">
     <h1 style="font-size:32px;margin:0 0 6px">Create an account</h1>
     <p class="sub">Buying? Create a free account in one minute. Selling? To keep buyers safe, every seller is checked by our team: you upload your documents on the next step, then we call you to confirm.</p>
+    <details class="intro-video panel" id="dealer-video" style="margin-bottom:18px"><summary><b>▶ Watch: how to register as a car dealer</b> <span class="hint">(1 minute, English and Swahili)</span></summary><video controls playsinline preload="none" poster="/assets/video/intro-dealer.jpg" src="/assets/video/intro-dealer.mp4" style="margin-top:12px"></video></details>
+    <script>if (/type=dealer/.test(location.search)) document.getElementById("dealer-video").open = true;</script>
     <form id="form" class="panel" novalidate>
       <div class="choice">
         <label><input type="radio" name="type" value="buyer" checked><b>I want to buy a car</b>Save cars, contact sellers, or let us manage the purchase for you. No documents needed.</label>

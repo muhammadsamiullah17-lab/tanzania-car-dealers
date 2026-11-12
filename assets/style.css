@@ -405,3 +405,9 @@ footer.site-foot .bottom{border-top:1px solid rgba(255,255,255,.1);margin-top:28
 .board h2{font-size:19px;margin:4px 0 6px}
 .board time{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
 .board p{margin:0;white-space:pre-line}
+
+/* Intro videos (home: buyers, sign-up: dealers) */
+.intro-video{max-width:880px;margin:0 auto 28px}
+.intro-video video{display:block;width:100%;aspect-ratio:16/9;border-radius:18px;background:#0a111c;border:1px solid var(--line)}
+.intro-video .hint{text-align:center;margin:8px 0 0}
+details.intro-video summary{cursor:pointer}
