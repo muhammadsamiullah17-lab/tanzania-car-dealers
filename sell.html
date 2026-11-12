@@ -37,13 +37,25 @@
         <div><label for="owners">Previous owners in Tanzania</label><select id="owners" name="owners"><option value="">Don't know</option><option value="0">None (fresh import)</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4 or more</option></select></div>
         <div class="full"><label>Features</label><div class="features" id="features"></div></div>
         <div class="full"><label for="description">Description</label><textarea id="description" name="description" maxlength="2000" placeholder="Condition, service history, extras, reason for selling…"></textarea></div>
+        <div class="full ownership"><h3 style="margin:6px 0 4px">🔒 Car number, chassis number and papers</h3>
+          <p class="hint" style="margin:0 0 10px">Required for every car. Only our team sees these; buyers see a <b>✓ Papers checked</b> badge. A car can be listed only once: if the chassis number or plate is already on the site, it cannot be posted again. <span class="sw-line">Lazima kwa kila gari. Gari moja linawekwa mara moja tu.</span></p></div>
+        <div><label for="plate">Number plate *</label><input id="plate" name="plate" maxlength="15" placeholder="T 123 ABC" style="text-transform:uppercase">
+          <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="notRegistered" name="notRegistered" style="width:auto"> Not registered yet (new import, no plate)</label></div>
+        <div><label for="chassis">Chassis number (VIN / frame no.) *</label><input id="chassis" name="chassis" required maxlength="30" placeholder="e.g. NZE141-1234567" style="text-transform:uppercase"><div class="hint">Exactly as on the registration card.</div></div>
+        <div class="full"><label for="papers">Copy of the car's papers * (photo or PDF, up to 4)</label>
+          <div id="keep-papers"></div>
+          <input id="papers" type="file" accept="image/*,application/pdf" multiple>
+          <div class="hint" id="papers-hint">Registered car: the registration card (kadi ya gari), both sides. Not registered yet: the export certificate, bill of lading or import declaration.</div>
+          <div class="hint" id="papers-list"></div></div>
+        <div class="full"><label style="display:flex;gap:10px;align-items:flex-start;font-weight:500;padding:12px 14px;border:1px solid var(--line);border-radius:12px"><input type="checkbox" name="declare" id="declare" style="width:auto;margin-top:3px">
+          <span>I confirm this car belongs to me or my company, or I am authorised by the owner to sell it. The chassis number and papers are genuine and belong to this car. I am responsible for this ad. <span class="hint" style="display:block">Ninathibitisha gari hili ni langu au la kampuni yangu, nyaraka ni halali, na ninawajibika kwa tangazo hili.</span></span></label></div>
         <div class="full"><label for="photos">Photos * (up to 10)</label>
           <div class="thumbs" id="keep" hidden></div>
           <input id="photos" type="file" accept="image/*" multiple>
           <div class="hint">Take photos in daylight, holding the phone sideways. Include front, back, both sides, inside and the dashboard.</div>
           <div class="thumbs" id="thumbs"></div></div>
         <div class="full"><button class="btn btn-main" id="submit" type="submit" style="width:100%">Send my car for approval</button>
-          <div class="hint" style="text-align:center">By posting, you confirm the car is yours (or your business's) to sell and the details are true.</div></div>
+          <div class="hint" style="text-align:center">Our team checks the chassis number and papers before the car goes live.</div></div>
       </div>
     </form>
   </div>
@@ -58,7 +70,7 @@
   TCD.chrome("sell");
   var esc = TCD.esc, form = document.getElementById("form"), gate = document.getElementById("gate");
   var msg = document.getElementById("msg"), btn = document.getElementById("submit");
-  var photos = [];
+  var photos = [], papers = [];
 
   var steps = '<div class="why" style="margin:18px 0">' +
     '<div><span class="n">1️⃣</span><h3>Create an account</h3><p>As a private person or a car dealer.</p></div>' +
@@ -86,6 +98,12 @@
     ["make", "model", "year", "price", "km", "city", "body", "fuel", "gearbox", "color", "cc", "drive", "assembly", "registeredIn", "description"].forEach(function(k){
       if (ad[k] != null && form.elements[k]) form.elements[k].value = ad[k];
     });
+    form.elements.plate.value = ad.plate || "";
+    form.elements.chassis.value = ad.chassis || "";
+    form.elements.notRegistered.checked = Boolean(ad.notRegistered); syncPlate();
+    document.getElementById("keep-papers").innerHTML = (ad.papers || []).map(function(p){
+      return '<label style="display:flex;gap:8px;align-items:center;font-weight:500;font-size:14px"><input type="checkbox" data-keep-paper="' + esc(p.id) + '" checked style="width:auto"> keep 📄 ' + esc(p.name) + '</label>';
+    }).join("");
     form.elements.owners.value = ad.owners == null ? "" : String(Math.min(ad.owners, 4));
     form.querySelectorAll('input[name="feature"]').forEach(function(c){ c.checked = (ad.features || []).indexOf(c.value) !== -1; });
     var keep = document.getElementById("keep");
@@ -132,6 +150,25 @@
     gate.innerHTML = '<div class="notice err">' + esc(ex.message) + '</div>';
   });
 
+  function syncPlate(){
+    var off = form.elements.notRegistered.checked;
+    form.elements.plate.disabled = off; if (off) form.elements.plate.value = "";
+  }
+  form.elements.notRegistered.addEventListener("change", syncPlate);
+  document.getElementById("papers").addEventListener("change", function(e){
+    var list = Array.from(e.target.files).slice(0, 4);
+    Promise.all(list.map(function(f){
+      if (f.type === "application/pdf") return new Promise(function(res, rej){
+        if (f.size > 3 * 1024 * 1024) return rej(new Error("That PDF is larger than 3 MB. Please take a photo instead."));
+        var r = new FileReader(); r.onload = function(){ res({ data: r.result, name: f.name }); }; r.onerror = function(){ rej(new Error("Could not read the file.")); }; r.readAsDataURL(f);
+      });
+      return TCD.shrinkImage(f, 1800, 0.85).then(function(d){ return { data: d, name: f.name }; });
+    })).then(function(out){
+      papers = out;
+      document.getElementById("papers-list").textContent = out.length ? "Ready: " + out.map(function(p){ return p.name; }).join(", ") : "";
+    }).catch(function(err){ papers = []; e.target.value = ""; show("err", err.message); });
+  });
+
   form.price.addEventListener("input", function(){
     var v = Number(form.price.value);
     document.getElementById("price-hint").textContent = v ? TCD.money(v) : "";
@@ -156,13 +193,17 @@
     data.features = Array.from(form.querySelectorAll('input[name="feature"]:checked')).map(function(c){ return c.value; });
     var missing = Array.from(form.querySelectorAll("[required]")).filter(function(el){ return !el.value.trim(); });
     if (missing.length) return show("err", "Please fill in all fields marked *.");
+    if (!form.elements.notRegistered.checked && !form.elements.plate.value.trim()) return show("err", "Enter the number plate, or tick \"Not registered yet\".");
+    var keepPapers = Array.from(form.querySelectorAll("[data-keep-paper]")).filter(function(c){ return c.checked; }).map(function(c){ return c.dataset.keepPaper; });
+    if (!papers.length && !keepPapers.length) return show("err", "Please add a copy of the car's registration card (or import papers).");
+    if (!form.elements.declare.checked) return show("err", "Please tick the box to confirm the car is yours to sell and the papers are genuine.");
     var keep = Array.from(form.querySelectorAll("[data-keep]")).filter(function(c){ return c.checked; }).map(function(c){ return c.dataset.keep; });
     if (!photos.length && !keep.length) return show("err", "Please add at least one photo of the car.");
     if (keep.length + photos.length > MAX) return show("err", "Up to " + MAX + " photos in total. Untick some old photos or choose fewer new ones.");
     btn.disabled = true; btn.textContent = "Sending…";
     var request = current
-      ? TCD.api("account", "updateMyAd", Object.assign(data, { id: current.id, keepPhotos: keep, newPhotos: photos }))
-      : fetch("/api/submit", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + TCD.session.get().token }, body: JSON.stringify(Object.assign(data, { photos: photos })) })
+      ? TCD.api("account", "updateMyAd", Object.assign(data, { id: current.id, keepPhotos: keep, newPhotos: photos, keepPapers: keepPapers, newPapers: papers }))
+      : fetch("/api/submit", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + TCD.session.get().token }, body: JSON.stringify(Object.assign(data, { photos: photos, papers: papers })) })
           .then(function(r){ return r.json().then(function(j){ if (!r.ok) throw new Error(j.error || "Something went wrong"); return j; }); });
     request.then(function(j){
         var id = current ? current.id : j.id;

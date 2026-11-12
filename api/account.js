@@ -2,6 +2,7 @@
 // "signup" and "login" are open; the rest need a member session.
 import { ads, files, sortListings, savePhoto, photoFileId, readBody, send } from "../lib/store.js";
 import { adFields, checkPrice } from "../lib/adfields.js";
+import { ownershipFields, assertNotListed, updatePapers } from "../lib/ownership.js";
 import { issueToken, readToken } from "../lib/auth.js";
 import { users, publicUser } from "../lib/users.js";
 import { checkNewPassword, hashPassword, verifyPassword } from "../lib/secure.js";
@@ -165,13 +166,17 @@ const actions = {
     const ad = await ownAd(b.id, me);
     if (ad.status === "sold") throw fail("This car is marked as sold.");
     const fields = adFields(b);
+    const owner = ownershipFields(b);
+    await assertNotListed(owner, me, ad.id);
+    await updatePapers(ad, b.keepPapers, b.newPapers);
     const keep = (b.keepPhotos || []).filter((u) => ad.photos.includes(u));
     const added = [];
     for (const p of (b.newPhotos || []).slice(0, 10 - keep.length)) added.push(await savePhoto("ad:" + ad.id, p));
     if (!keep.length && !added.length) throw fail("Keep or add at least one photo.");
     for (const u of ad.photos.filter((u) => !keep.includes(u))) await files.remove(photoFileId(u)).catch(() => {});
     if (fields.price < ad.price) ad.priceDroppedAt = new Date().toISOString();
-    Object.assign(ad, fields, { photos: keep.concat(added), status: "pending", editedAt: new Date().toISOString(), updatedAt: new Date().toISOString(), updatedBy: "seller" });
+    // staff check the papers again before it goes back live
+    Object.assign(ad, fields, owner, { declaredAt: new Date().toISOString(), papersCheckedAt: null, papersCheckedBy: null, photos: keep.concat(added), status: "pending", editedAt: new Date().toISOString(), updatedAt: new Date().toISOString(), updatedBy: "seller" });
     await ads.save(ad);
     return { ad };
   },

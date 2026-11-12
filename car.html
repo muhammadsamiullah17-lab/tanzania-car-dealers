@@ -146,7 +146,7 @@
         ((car.features || []).length ? '<h2 style="font-size:20px;margin-top:20px">' + TCD.t("Features") + '</h2><ul class="feature-list">' + car.features.map(function(x){ return '<li>✓ ' + esc(x) + '</li>'; }).join("") + '</ul>' : "") +
         (car.description ? '<h2 style="font-size:20px;margin-top:20px">' + TCD.t("Description") + '</h2><p style="white-space:pre-line;margin:0">' + esc(car.description) + '</p>' : "") + '</div>' +
       '</div><aside class="side">' +
-        '<div class="panel">' + (car.featured ? '<span class="verified" style="background:var(--yellow);color:#1b1b00;border-color:var(--yellow)">' + TCD.t("FEATURED") + '</span> ' : "") + (car.inspection ? '<span class="verified">✓ ' + TCD.t("TCD Inspected") + ' ' + car.inspection.overall + '/10</span> ' : "") +
+        '<div class="panel">' + (car.featured ? '<span class="verified" style="background:var(--yellow);color:#1b1b00;border-color:var(--yellow)">' + TCD.t("FEATURED") + '</span> ' : "") + (car.inspection ? '<span class="verified">✓ ' + TCD.t("TCD Inspected") + ' ' + car.inspection.overall + '/10</span> ' : "") + (car.papersChecked ? '<span class="verified" title="Our team checked the chassis number and registration papers">✓ ' + TCD.t("Papers checked") + '</span> ' : "") +
           (reduced && !sold ? '<span class="verified" style="border-color:var(--danger);color:var(--danger);background:transparent">' + TCD.t("PRICE REDUCED") + '</span>' : "") +
           '<h1 style="font-size:26px;margin:8px 0 4px">' + esc(t) + '</h1>' +
           '<div class="price" style="font-size:26px">' + (sold ? TCD.t("SOLD") : TCD.money(car.price)) + '</div>' +

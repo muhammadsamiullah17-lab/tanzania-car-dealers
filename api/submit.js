@@ -1,10 +1,12 @@
 // POST /api/submit -> a verified member posts a car. It is saved as "pending" until staff approve it.
 // Seller name, phone and dealer link come from the member's verified account, not from the form.
+// Every car needs its number plate, chassis number and papers, and may be listed only once (lib/ownership.js).
 import { ads, newId, savePhoto, readBody, send } from "../lib/store.js";
 import { readToken } from "../lib/auth.js";
 import { members } from "../lib/members.js";
 import { adFields } from "../lib/adfields.js";
 import { getSite } from "../lib/site.js";
+import { ownershipFields, assertNotListed, savePaper } from "../lib/ownership.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "Method not allowed" });
@@ -19,12 +21,16 @@ export default async function handler(req, res) {
   } catch {
     return send(res, 400, { error: "Invalid request" });
   }
-  let fields;
+  let fields, owner;
   try {
     fields = adFields(b);
+    owner = ownershipFields(b);
+    await assertNotListed(owner, me);
   } catch (e) {
-    return send(res, 400, { error: e.message });
+    return send(res, e.status || 400, { error: e.message });
   }
+  const papers = Array.isArray(b.papers) ? b.papers.slice(0, 4) : [];
+  if (!papers.length) return send(res, 400, { error: "Please add a copy of the car's registration card (or import papers if it is not registered yet)." });
   const photos = Array.isArray(b.photos) ? b.photos.slice(0, 10) : [];
   if (!photos.length) return send(res, 400, { error: "Please check: at least one photo." });
 
@@ -32,12 +38,17 @@ export default async function handler(req, res) {
   try {
     const urls = [];
     for (const p of photos) urls.push(await savePhoto("ad:" + id, p));
+    const savedPapers = [];
+    for (const p of papers) savedPapers.push(await savePaper(id, p && p.data, p && p.name));
     const now = new Date().toISOString();
     const dealer = me.type === "dealer";
     await ads.save({
       id,
       status: "pending",
       ...fields,
+      ...owner,
+      papers: savedPapers,
+      declaredAt: now,
       memberId: me.id,
       sellerName: me.fullName,
       sellerPhone: me.phone,

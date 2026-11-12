@@ -5,6 +5,7 @@ import { ads, dealers, files, newId, digits, sortListings, savePhoto, photoFileI
 import { checkSetupKey, issueToken, readToken } from "../lib/auth.js";
 import { users, ROLES, cleanUsername, checkNewPassword, hashPassword, verifyPassword, newUser, publicUser } from "../lib/users.js";
 import { members, staffView, readDoc, removeMember } from "../lib/members.js";
+import { assertCanApprove, readPaper } from "../lib/ownership.js";
 import { jcars, jrequests, getSettings, saveSettings, SALE_TYPES, JSTATUSES, REQUEST_STATUSES, CONDITIONS } from "../lib/japan.js";
 import { alerts, reports, inspectionFields } from "../lib/buyers.js";
 import { deals, DEAL_STATUSES } from "../lib/deals.js";
@@ -66,6 +67,10 @@ const actions = {
       if (!ad) throw fail("Ad not found", 404);
       if (b.status !== undefined) {
         if (!STATUSES.includes(b.status)) throw fail("Bad status");
+        if (b.status === "approved") {
+          await assertCanApprove(ad, b.papersChecked);
+          if (b.papersChecked && !ad.papersCheckedAt) Object.assign(ad, { papersCheckedAt: new Date().toISOString(), papersCheckedBy: me.username });
+        }
         ad.status = b.status;
         if (b.status === "approved" && !ad.approvedAt) {
           ad.approvedAt = new Date().toISOString();
@@ -83,6 +88,16 @@ const actions = {
       ad.updatedBy = me.username;
       await ads.save(ad);
       return { ad };
+    },
+  },
+
+  // One decrypted car paper (registration card / import papers) so staff can check it.
+  getPaper: {
+    async run(b) {
+      const ad = await ads.get(b.adId);
+      const paper = ad && (ad.papers || []).find((p) => p.id === b.paperId);
+      if (!paper) throw fail("Paper not found", 404);
+      return { contentType: paper.contentType, name: paper.name, data: (await readPaper(paper)).toString("base64") };
     },
   },
 

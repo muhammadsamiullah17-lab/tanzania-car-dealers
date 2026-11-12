@@ -17,6 +17,8 @@ Car marketplace for Tanzania. Every seller (private person or car dealer) create
 
 ## Selling, search and trust
 
+- **One car, one ad** (`lib/ownership.js`): every car needs its number plate (or "Not registered yet" for a new import), its chassis number and a copy of its papers (registration card, or export/import papers), plus the seller ticking that the car is theirs to sell and they are responsible for the ad. A chassis number or plate already on any ad (waiting, live, sold or rejected) blocks a new ad; a dealer who sells a car to another dealer deletes their ad first. Papers are encrypted; only staff open them. Staff must confirm they checked the papers before approving; buyers see **✓ Papers checked**, never the plate, chassis number or papers. Editing a car sends it back for a new papers check.
+
 - **My cars** (in `/account`): edit (goes back to approval), change price (stays live, shows "Price reduced"), mark sold, delete.
 - Ads have engine cc, drive, assembly, registered in, previous owners and a features checklist (`lib/adfields.js`).
 - **Search** on `/`: ranges, gearbox, fuel, drive, seller type, with photos, inspected only, sorting, pages; filters live in the URL.
